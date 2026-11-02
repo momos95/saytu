@@ -1,0 +1,5 @@
+{
+  "oidcIssuer": "http://localhost:8180/realms/africodeshield",
+  "oidcClientId": "africodeshield-web",
+  "apiBaseUrl": "/api/v1"
+}

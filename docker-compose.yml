@@ -1,0 +1,162 @@
+# AfriCodeShield - on-premise stack.
+#   scripts/generate-secrets.sh && docker compose up -d --build
+#   UI: ${ACS_PUBLIC_URL} (default http://localhost:8080)   SSO: ${ACS_KEYCLOAK_PUBLIC_URL}
+# Optional local LLM: docker compose --profile ai up -d
+#
+# Phase 1 services: postgres, keycloak, api, web (+ optional ollama).
+# The scan worker (scanner binaries, sandbox) is added in phase 4.
+
+name: africodeshield
+
+x-hardening: &hardening
+  security_opt:
+    - no-new-privileges:true
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+services:
+  postgres:
+    <<: *hardening
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-africodeshield}
+      POSTGRES_USER: ${POSTGRES_USER:-acs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 2g }
+
+  keycloak:
+    <<: *hardening
+    image: quay.io/keycloak/keycloak:26.4
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME: ${ACS_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}
+      # Lets the API reach Keycloak at http://keycloak:8080 while tokens keep the public issuer
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "false"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-kcadmin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?set KC_BOOTSTRAP_ADMIN_PASSWORD in .env}
+      # placeholders substituted in the realm import
+      ACS_PUBLIC_URL: ${ACS_PUBLIC_URL:-http://localhost:8080}
+      ACS_INITIAL_ADMIN_USERNAME: ${ACS_INITIAL_ADMIN_USERNAME:-admin}
+      ACS_INITIAL_ADMIN_PASSWORD: ${ACS_INITIAL_ADMIN_PASSWORD:?set ACS_INITIAL_ADMIN_PASSWORD in .env}
+    volumes:
+      - ./infra/keycloak/africodeshield-realm.json:/opt/keycloak/data/import/africodeshield-realm.json:ro
+    ports:
+      - "${ACS_KEYCLOAK_PORT:-8180}:8080"
+    networks: [data, edge]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # the image has no curl: plain HTTP request on the management port through bash /dev/tcp
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 1536m }
+
+  api:
+    <<: *hardening
+    build:
+      context: ./backend
+    image: africodeshield/api:${ACS_VERSION:-dev}
+    environment:
+      ACS_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-africodeshield}
+      ACS_DB_USER: ${POSTGRES_USER:-acs}
+      ACS_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      ACS_OIDC_ISSUER: ${ACS_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}/realms/africodeshield
+      ACS_OIDC_JWK_SET_URI: http://keycloak:8080/realms/africodeshield/protocol/openid-connect/certs
+      ACS_OIDC_AUDIENCE: africodeshield-api
+      ACS_OIDC_WEB_CLIENT_ID: africodeshield-web
+      ACS_CORS_ALLOWED_ORIGINS: ${ACS_PUBLIC_URL:-http://localhost:8080}
+      ACS_EXPOSE_API_DOCS: ${ACS_EXPOSE_API_DOCS:-false}
+      ACS_MASTER_KEY: ${ACS_MASTER_KEY:?set ACS_MASTER_KEY in .env}
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop: [ALL]
+    networks: [data, edge]
+    # not published: reached through the web container (/api)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 1536m }
+
+  web:
+    <<: *hardening
+    build:
+      context: ./frontend
+    image: africodeshield/web:${ACS_VERSION:-dev}
+    environment:
+      ACS_OIDC_ISSUER: ${ACS_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}/realms/africodeshield
+      ACS_OIDC_CLIENT_ID: africodeshield-web
+      ACS_PUBLIC_URL: ${ACS_PUBLIC_URL:-http://localhost:8080}
+    ports:
+      - "${ACS_HTTP_PORT:-8080}:8080"
+    cap_drop: [ALL]
+    networks: [edge]
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz | grep -q ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 256m }
+
+  ollama:
+    <<: *hardening
+    image: ollama/ollama:latest
+    profiles: [ai]
+    volumes:
+      - ollama:/root/.ollama
+    networks: [data]
+    # no published port: only the API/worker talk to it, over the internal network
+    deploy:
+      resources:
+        limits: { cpus: "4", memory: 12g }
+
+networks:
+  # database and internal services; no route to the outside world
+  data:
+    internal: true
+  # browser-facing services
+  edge: {}
+
+volumes:
+  pgdata: {}
+  ollama: {}

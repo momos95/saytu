@@ -1,0 +1,51 @@
+# Rendered at container start by the nginx image (envsubst on ${ACS_*} variables only).
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+    client_max_body_size 2m;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ${ACS_KEYCLOAK_ORIGIN}; frame-src ${ACS_KEYCLOAK_ORIGIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self' ${ACS_KEYCLOAK_ORIGIN}; object-src 'none'" always;
+
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # Runtime configuration of the SPA (see AppConfigService)
+    location = /assets/config.json {
+        default_type application/json;
+        add_header Cache-Control "no-store" always;
+        return 200 '{"oidcIssuer":"${ACS_OIDC_ISSUER}","oidcClientId":"${ACS_OIDC_CLIENT_ID}","apiBaseUrl":"/api/v1"}';
+    }
+
+    # REST API, same origin: no CORS needed in production
+    location /api/ {
+        proxy_pass http://api:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_read_timeout 120s;
+    }
+
+    # Hashed bundles are immutable
+    location ~* \.(?:js|css|woff2?|svg|png|ico)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable" always;
+        try_files $uri =404;
+    }
+
+    # SPA routing
+    location / {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri $uri/ /index.html;
+    }
+}

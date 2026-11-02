@@ -1,0 +1,78 @@
+# AfriCodeShield - every value can be overridden with environment variables (see .env.example).
+spring:
+  application:
+    name: africodeshield
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${ACS_DB_URL:jdbc:postgresql://localhost:5432/africodeshield}
+    username: ${ACS_DB_USER:acs}
+    password: ${ACS_DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${ACS_DB_POOL_SIZE:10}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # the schema is owned by Flyway; Hibernate only checks that entities match it
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Tokens are issued for the public URL used by browsers...
+          issuer-uri: ${ACS_OIDC_ISSUER:http://localhost:8180/realms/africodeshield}
+          # ...but keys are fetched from Keycloak over the internal Docker network.
+          jwk-set-uri: ${ACS_OIDC_JWK_SET_URI:http://localhost:8180/realms/africodeshield/protocol/openid-connect/certs}
+          audiences: ${ACS_OIDC_AUDIENCE:africodeshield-api}
+
+acs:
+  version: '@project.version@'
+  security:
+    web-client-id: ${ACS_OIDC_WEB_CLIENT_ID:africodeshield-web}
+    expose-api-docs: ${ACS_EXPOSE_API_DOCS:false}
+  cors:
+    allowed-origins: ${ACS_CORS_ALLOWED_ORIGINS:http://localhost:4200}
+
+springdoc:
+  api-docs:
+    enabled: ${ACS_EXPOSE_API_DOCS:false}
+  swagger-ui:
+    enabled: ${ACS_EXPOSE_API_DOCS:false}
+
+server:
+  port: 8080
+  shutdown: graceful
+  forward-headers-strategy: framework
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  info:
+    build:
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    # never log HTTP bodies / headers of outgoing Git API calls (they carry tokens)
+    org.apache.hc.client5.http.wire: OFF
+    org.springframework.web.client: INFO

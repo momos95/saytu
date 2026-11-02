@@ -1,0 +1,22 @@
+# secrets
+.env
+*.pem
+*.key
+
+# Java
+target/
+*.class
+*.log
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+coverage/
+out-tsc/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
