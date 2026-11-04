@@ -54,6 +54,13 @@ class ArchitectureTest {
             .allowEmptyShould(true);
 
     @ArchTest
+    static final ArchRule entityMethodsAreProxyable = com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods()
+            .that().areDeclaredInClassesThat().areAnnotatedWith(jakarta.persistence.Entity.class)
+            .and().arePublic()
+            .should().notHaveModifier(com.tngtech.archunit.core.domain.JavaModifier.FINAL)
+            .because("Hibernate cannot create lazy-loading proxies for entities with final public methods");
+
+    @ArchTest
     static final ArchRule repositoriesAreInterfaces = classes()
             .that().haveSimpleNameEndingWith("Repository").and().resideInAPackage("com.africodeshield.app..")
             .should().beInterfaces();

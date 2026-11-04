@@ -95,7 +95,7 @@ public class SourceRepositoryEntity {
         this.externalId = externalId;
         this.fullName = fullName;
         this.name = name;
-        setCloneUrl(cloneUrl);
+        this.cloneUrl = validCloneUrl(cloneUrl);
     }
 
     @PrePersist
@@ -150,11 +150,17 @@ public class SourceRepositoryEntity {
     }
 
     /** Rejects URLs carrying credentials (also enforced by a database CHECK constraint). */
-    public final void setCloneUrl(String cloneUrl) {
+    public void setCloneUrl(String cloneUrl) {
+        this.cloneUrl = validCloneUrl(cloneUrl);
+    }
+
+    // Static helper rather than calling the setter from the constructor: entity methods must stay
+    // overridable (non-final) so that Hibernate can create lazy-loading proxies.
+    private static String validCloneUrl(String cloneUrl) {
         if (cloneUrl == null || cloneUrl.matches("^[a-zA-Z][a-zA-Z0-9+.-]*://[^/]*@.*")) {
             throw new IllegalArgumentException("clone URL must not be null nor embed credentials");
         }
-        this.cloneUrl = cloneUrl;
+        return cloneUrl;
     }
 
     public String getWebUrl() {
