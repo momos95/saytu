@@ -85,6 +85,9 @@ public class SourceRepositoryEntity {
     @Column(name = "last_seen_at", nullable = false)
     private Instant lastSeenAt;
 
+    @Column(name = "removed_at")
+    private Instant removedAt;
+
     protected SourceRepositoryEntity() {
         // JPA
     }
@@ -105,8 +108,33 @@ public class SourceRepositoryEntity {
         lastSeenAt = now;
     }
 
+    /** Seen again on the platform: no longer flagged as removed. */
     public void markSeen(Instant at) {
         this.lastSeenAt = at;
+        this.removedAt = null;
+    }
+
+    public void markRemoved(Instant at) {
+        if (removedAt == null) {
+            removedAt = at;
+        }
+    }
+
+    public Instant getRemovedAt() {
+        return removedAt;
+    }
+
+    public boolean isRemoved() {
+        return removedAt != null;
+    }
+
+    /**
+     * Whether the repository is part of the audit scope: its namespace is selected, and either the
+     * namespace includes all its repositories or this one was picked; archived and removed ones never are.
+     */
+    public boolean isScanTarget() {
+        return namespace != null && namespace.isSelected() && !namespace.isRemoved() && !archived && removedAt == null
+                && connection.isEnabled() && (namespace.isIncludeAllRepositories() || selected);
     }
 
     public UUID getId() {

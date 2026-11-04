@@ -82,6 +82,15 @@ public class GitConnectionEntity {
     @Column(name = "token_expires_at")
     private Instant tokenExpiresAt;
 
+    @Column(name = "last_discovery_at")
+    private Instant lastDiscoveryAt;
+
+    @Column(name = "last_discovery_status", length = 32)
+    private String lastDiscoveryStatus;
+
+    @Column(name = "last_discovery_message", length = 1000)
+    private String lastDiscoveryMessage;
+
     @Column(name = "created_by", nullable = false, updatable = false)
     private String createdBy;
 
@@ -253,6 +262,24 @@ public class GitConnectionEntity {
 
     public Instant getTokenExpiresAt() {
         return tokenExpiresAt;
+    }
+
+    public void recordDiscovery(String status, String message, Instant at) {
+        this.lastDiscoveryStatus = status;
+        this.lastDiscoveryMessage = truncate(message, 1000);
+        this.lastDiscoveryAt = at;
+    }
+
+    public Instant getLastDiscoveryAt() {
+        return lastDiscoveryAt;
+    }
+
+    public String getLastDiscoveryStatus() {
+        return lastDiscoveryStatus;
+    }
+
+    public String getLastDiscoveryMessage() {
+        return lastDiscoveryMessage;
     }
 
     public String getCreatedBy() {

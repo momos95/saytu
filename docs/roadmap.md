@@ -4,12 +4,43 @@
 |---|---|---|
 | 1 | Architecture, modèle de données, monorepo, Docker Compose | ✅ livrée (voir détail ci-dessous) |
 | 2 | Authentification Keycloak dans l'UI, coffre de tokens AES-GCM, CRUD + test des connexions Git | ✅ livrée (voir détail) |
-| 3 | Découverte organisations / dépôts / branches, sélection, configuration des branches | à faire |
+| 3 | Découverte organisations / dépôts / branches, sélection, configuration des branches | ✅ livrée (voir détail) |
 | 4 | Worker, file d'exécution, sandbox, clone sécurisé, Opengrep, Trivy, Gitleaks | à faire |
 | 5 | PMD, Checkstyle, normalisation complète, scoring et couverture | à faire |
 | 6 | Dashboard Angular, détail dépôt, liste/détail des vulnérabilités, rapports HTML/PDF/JSON/SARIF | à faire |
 | 7 | Planification cron, historique, comparaison de scans, webhooks, recommandations, Ollama | à faire |
 | 8 | Durcissement, tests de bout en bout, SBOM, guides d'exploitation et de mise à jour hors ligne | à faire |
+
+## Phase 3 — détail
+
+### Livré et vérifié dans l'environnement de développement
+* Découverte pour les cinq plateformes (`acs-git`) — **89 tests exécutés, 89 réussis**, dont 27 nouveaux :
+  * GitLab : compte personnel, groupes et sous-groupes (`X-Next-Page`), projets, branches ;
+  * GitHub / GHES : compte, organisations (`Link`), dépôts propres privés ou publics, branches ;
+  * Bitbucket Cloud : `/user/workspaces` puis `/repositories/{workspace}` (les points d'API
+    inter-workspaces ont été supprimés par Atlassian, CHANGE-2770), access tokens par nom ;
+  * Bitbucket Data Center : projets, dépôts, branches (`start`/`nextPageStart`) ;
+  * dépôts locaux : lecture directe de `HEAD`, `refs/heads` et `packed-refs`, sans git ;
+  * ajout par nom (organisation publique, groupe, workspace, projet) ;
+  * parcours de toutes les pages avec plafond, détection de boucle et résultats partiels conservés.
+* Correction : le test de connexion Bitbucket Cloud n'utilise plus `/repositories?role=member` (supprimé).
+* Règles de nom de branche (`BranchNames`, 3 tests) et contrainte SQL équivalente (18 contrôles).
+* Migration V3 sur PostgreSQL 16 : 39 contrôles de contraintes réussis au total.
+* Frontend : arborescence des organisations, filtres, listes de branches, messages de synchronisation
+  — **20 specs exécutées dans Node, 20 réussies**.
+
+### Livré, écrit pour compiler, **non exécuté ici**
+* Spring : `DiscoveryService` (synchronisation hors transaction, fusion, marquage « retiré »),
+  `SelectionService` (sélection, modes de branches, branches personnalisées et distantes, périmètre),
+  `ScannerConfigService`, contrôleurs ; tests `DiscoveryServiceTest`, `ScanTargetRulesTest`,
+  `DiscoveryControllerSecurityTest` (exécutables par `mvn test`) et `DiscoveryApiIT` (Docker).
+* Angular : pages « Organisations & dépôts » et « Scanners & branches », sélecteur de branches, specs.
+
+### Limites connues de la phase 3
+* Synchronisation déclenchée à la main ; la resynchronisation automatique avant chaque scan
+  (nouveaux dépôts des organisations « tous les dépôts ») arrive avec le moteur d'audit (phase 4).
+* Une synchronisation à la fois par connexion, contrôlée en mémoire : suffisant avec une seule
+  instance de l'API.
 
 ## Phase 2 — détail
 

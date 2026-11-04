@@ -4,8 +4,9 @@ Plateforme **on-premise** et open source d'audit automatisé de la sécurité et
 code, multi-organisations et multi-dépôts (GitLab, GitHub, Bitbucket, dépôts locaux).
 Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre infrastructure.
 
-> **État : phase 2 / 8** — connexion via Keycloak et gestion des connexions Git (enregistrement,
-> chiffrement des tokens, test). Aucun scan n'est encore exécutable. Détail : [docs/roadmap.md](docs/roadmap.md).
+> **État : phase 3 / 8** — connexion via Keycloak, connexions Git chiffrées, découverte des
+> organisations, dépôts et branches, choix du périmètre d'audit et configuration des scanners.
+> Aucun scan n'est encore exécutable (phase 4). Détail : [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
 

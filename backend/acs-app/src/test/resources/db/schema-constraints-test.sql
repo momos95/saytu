@@ -47,6 +47,15 @@ SELECT pg_temp.expect_failure(
        VALUES ('00000000-0000-0000-0000-000000000001', '43', 'g/b', 'b', 'https://oauth2:glpat-x@gitlab.example.org/g/b.git')$q$,
     'clone url with embedded credentials rejected');
 
+INSERT INTO repository_branch (repository_id, name) VALUES
+    ('00000000-0000-0000-0000-000000000010', 'feature/ABC-12_login'),
+    ('00000000-0000-0000-0000-000000000010', 'release/2026.11');
+SELECT 'ok - valid branch names accepted (V3)';
+SELECT pg_temp.expect_failure(format($q$INSERT INTO repository_branch (repository_id, name)
+       VALUES ('00000000-0000-0000-0000-000000000010', %L)$q$, n), 'branch name rejected (V3): ' || n)
+FROM unnest(ARRAY['-x', 'a..b', 'a b', 'a~1', 'x.lock', 'feat/.hidden', 'main/', '/main', 'a//b', 'HEAD',
+                  'a@{1}', 'main.', E'a\nb', 'a:b', 'a*', 'a[']) AS n;
+
 INSERT INTO scan_run (id, trigger_type, requested_by) VALUES ('00000000-0000-0000-0000-000000000100', 'MANUAL', 'test');
 INSERT INTO scan_job (id, scan_run_id, repository_id, branch)
 VALUES ('00000000-0000-0000-0000-000000001000', '00000000-0000-0000-0000-000000000100',

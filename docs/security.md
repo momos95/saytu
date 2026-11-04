@@ -32,6 +32,18 @@ les GitLab et Bitbucket auto-hébergés. Les redirections ne sont jamais suivies
 en production : résolveur DNS interne de confiance et filtrage de sortie (pare-feu) n'autorisant que
 les forges connues.
 
+### Découverte (phase 3)
+* Les curseurs de pagination envoyés au navigateur sont de simples numéros (page ou position) : les
+  URL de page suivante renvoyées par les plateformes (`Link`, `next`) ne sont jamais suivies telles
+  quelles : un curseur forgé ne peut donc pas détourner une requête — et le token — vers un autre hôte.
+* Les URL de clone annoncées par les plateformes sont nettoyées de tout identifiant
+  (`https://user@bitbucket.org/...`) ; la base refuse toute URL de clone contenant des identifiants.
+* Les noms de branches saisis respectent les règles de `git check-ref-format` (contrôle applicatif
+  et contrainte SQL) : impossible d'injecter une option (`--upload-pack=...`) ou un chemin (`..`).
+* Les dépôts locaux sont lus sans lancer git (fichiers `HEAD`, `refs/heads`, `packed-refs`) ; un
+  fichier `.git` pointant hors de la racine autorisée est ignoré.
+* Appels réseau hors transaction, une seule synchronisation à la fois par connexion.
+
 ### Dépôts locaux
 Seuls les répertoires situés sous `ACS_LOCAL_REPOS_ROOT` (monté en lecture seule sur `/srv/git`)
 sont acceptés, après résolution des liens symboliques.

@@ -15,7 +15,9 @@ Utilisez toujours un token **en lecture seule** dédié à AfriCodeShield.
 | Dépôts locaux | `/srv/git/<sous-dossier>` | — | aucun ; dossier monté en lecture seule |
 
 Les **mots de passe d'application Bitbucket Cloud ne fonctionnent plus depuis le 9 juin 2026** :
-utilisez un API token.
+utilisez un API token. Un *access token* de workspace, projet ou dépôt n'appartient à aucun
+utilisateur : son workspace ne peut pas être découvert automatiquement, ajoutez-le par son nom
+(voir ci-dessous).
 
 Sans token, l'accès est anonyme : seuls les dépôts publics sont visibles, avec les limites de débit
 basses des plateformes.
@@ -35,6 +37,36 @@ basses des plateformes.
 | Destination interdite | politique de sécurité (adresse de métadonnées, HTTP non chiffré, chemin hors `/srv/git`) | voir [security.md](security.md) |
 
 Changer l'adresse d'une connexion vers un autre serveur oblige à ressaisir le token.
+
+## Découvrir et sélectionner les dépôts (page « Organisations & dépôts »)
+
+1. Choisir la connexion, puis **Découvrir les organisations** : compte personnel, organisations,
+   groupes et sous-groupes, workspaces ou projets visibles avec le token.
+2. Pour une organisation publique dont vous n'êtes pas membre (ex. `kubernetes` sur GitHub), un
+   groupe GitLab par son chemin (ex. `gitlab-org/security-products`) ou le workspace d'un access token
+   Bitbucket : **Ajouter par nom**.
+3. Cocher **Auditer cette organisation**, puis :
+   * **Tous les dépôts (y compris futurs)** : chaque dépôt présent ou à venir est audité ;
+   * sinon **Charger les dépôts** et cocher ceux à auditer (recherche et pagination disponibles).
+4. Les dépôts archivés ne sont jamais audités. Un élément qui n'existe plus sur la plateforme est
+   signalé, pas supprimé : sa sélection est conservée s'il réapparaît.
+
+Une synchronisation interrompue (limite de requêtes, réseau) conserve ce qui a déjà été lu et
+n'efface rien ; relancez-la plus tard. Plafond : 10 000 éléments par synchronisation.
+
+## Branches et scanners (page « Scanners & branches »)
+
+Pour chaque dépôt audité :
+
+| Mode | Branches analysées |
+|---|---|
+| Branche par défaut | la branche par défaut du dépôt (`main`, `master`…) |
+| main, master, develop | celles des trois qui existent au moment du scan |
+| Liste personnalisée | les branches choisies dans la liste de la plateforme ou saisies (règles de nommage git) |
+
+La même page active ou désactive chaque scanner et fixe ses limites (durée, temps CPU, mémoire).
+Un scanner désactivé réduit la couverture affichée avec les scores : il n'est jamais compté comme
+« aucune vulnérabilité ».
 
 ## Proxy d'inspection HTTPS ou autorité interne
 

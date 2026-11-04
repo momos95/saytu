@@ -1,5 +1,6 @@
 package com.africodeshield.app.source;
 
+import com.africodeshield.core.git.BranchNames;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -43,12 +44,8 @@ public class RepositoryBranchEntity {
     }
 
     public RepositoryBranchEntity(SourceRepositoryEntity repository, String name) {
-        if (name == null || name.isBlank() || name.contains("..") || name.startsWith("-")) {
-            // "-..." would be read as an option by git; ".." is invalid in ref names
-            throw new IllegalArgumentException("invalid branch name");
-        }
         this.repository = repository;
-        this.name = name;
+        this.name = BranchNames.require(name);
     }
 
     public void recordScan(String commitSha, Instant at) {

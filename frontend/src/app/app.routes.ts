@@ -21,6 +21,16 @@ export const routes: Routes = [
         title: 'Connexions Git · AfriCodeShield',
         loadComponent: () => import('./features/connections/connections-page').then(m => m.ConnectionsPage),
       },
+      {
+        path: 'repositories',
+        title: 'Organisations et dépôts · AfriCodeShield',
+        loadComponent: () => import('./features/repositories/repositories-page').then(m => m.RepositoriesPage),
+      },
+      {
+        path: 'scan-settings',
+        title: 'Scanners et branches · AfriCodeShield',
+        loadComponent: () => import('./features/scan-settings/scan-settings-page').then(m => m.ScanSettingsPage),
+      },
       ...NAV_ITEMS.filter(item => item.data).map(item => ({
         path: item.path,
         component: PlannedPage,

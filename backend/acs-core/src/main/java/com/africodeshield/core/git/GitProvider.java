@@ -32,6 +32,13 @@ public interface GitProvider {
     /** Organisations / groups / sub-groups / workspaces / projects visible to the token. */
     Page<Namespace> listNamespaces(GitConnectionSpec connection, PageRequest page);
 
+    /**
+     * Looks up one namespace by its path or slug (e.g. a public GitHub organisation, a Bitbucket
+     * workspace reachable only with a workspace access token). Empty when it does not exist or is not
+     * visible to the credentials.
+     */
+    Optional<Namespace> findNamespace(GitConnectionSpec connection, String path);
+
     /** Repositories of one namespace. */
     Page<RemoteRepository> listRepositories(GitConnectionSpec connection, String namespaceExternalId, PageRequest page);
 

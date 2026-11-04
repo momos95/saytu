@@ -60,6 +60,22 @@ public class ScannerConfigEntity {
                 ResourceLimits.DEFAULT.maxOutputBytes(), ResourceLimits.DEFAULT.maxOpenFiles());
     }
 
+    /** Bounds mirror the database CHECK constraints of {@code scanner_config}. */
+    public void update(boolean enabled, int timeoutSeconds, int cpuSeconds, int memoryMb, String updatedBy, Instant at) {
+        if (timeoutSeconds < 30 || timeoutSeconds > 21_600) {
+            throw new IllegalArgumentException("timeoutSeconds must be between 30 and 21600");
+        }
+        if (cpuSeconds < 1 || memoryMb < 64) {
+            throw new IllegalArgumentException("cpuSeconds must be >= 1 and memoryMb >= 64");
+        }
+        this.enabled = enabled;
+        this.timeoutSeconds = timeoutSeconds;
+        this.cpuSeconds = cpuSeconds;
+        this.memoryMb = memoryMb;
+        this.updatedBy = updatedBy;
+        this.updatedAt = at;
+    }
+
     public String getScannerId() {
         return scannerId;
     }

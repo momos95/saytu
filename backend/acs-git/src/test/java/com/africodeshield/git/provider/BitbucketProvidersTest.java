@@ -48,12 +48,12 @@ class BitbucketProvidersTest {
     }
 
     @Test
-    void cloudAccessTokenFallsBackToRepositoriesWhenNotAUser() {
+    void cloudAccessTokenIsAcceptedAndAskedToAddItsWorkspaceByName() {
         server.on("/2.0/user", Reply.json(403, "{\"type\":\"error\",\"error\":{\"message\":\"Access token not linked to a user\"}}"));
-        server.on("/2.0/repositories?role=member&pagelen=1", Reply.json("{\"values\":[]}"));
         var r = new BitbucketCloudProvider(FakeGitServer.client()).testConnection(cloud("access-token", null));
         assertTrue(r.success(), String.valueOf(r.errorMessage()));
         assertEquals("access token", r.authenticatedAs());
+        assertTrue(r.warnings().stream().anyMatch(w -> w.contains("add its workspace by name")));
         assertEquals("Bearer access-token", server.requests.getFirst().header("Authorization"));
     }
 

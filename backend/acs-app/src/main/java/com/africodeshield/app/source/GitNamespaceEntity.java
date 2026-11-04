@@ -62,6 +62,24 @@ public class GitNamespaceEntity {
     @Column(name = "last_seen_at", nullable = false)
     private Instant lastSeenAt;
 
+    @Column(name = "removed_at")
+    private Instant removedAt;
+
+    @Column(name = "added_manually", nullable = false)
+    private boolean addedManually;
+
+    @Column(name = "repositories_synced_at")
+    private Instant repositoriesSyncedAt;
+
+    @Column(name = "repositories_sync_status", length = 32)
+    private String repositoriesSyncStatus;
+
+    @Column(name = "repositories_sync_message", length = 1000)
+    private String repositoriesSyncMessage;
+
+    @Column(name = "repositories_truncated", nullable = false)
+    private boolean repositoriesTruncated;
+
     protected GitNamespaceEntity() {
         // JPA
     }
@@ -82,8 +100,62 @@ public class GitNamespaceEntity {
         lastSeenAt = now;
     }
 
+    /** Seen again on the platform: no longer flagged as removed. */
     public void markSeen(Instant at) {
         this.lastSeenAt = at;
+        this.removedAt = null;
+    }
+
+    public void markRemoved(Instant at) {
+        if (removedAt == null) {
+            removedAt = at;
+        }
+    }
+
+    public void update(NamespaceKind kind, String fullPath, String name, String webUrl) {
+        this.kind = kind;
+        this.fullPath = fullPath;
+        this.name = name;
+        this.webUrl = webUrl;
+    }
+
+    public void recordRepositorySync(String status, String message, boolean truncated, Instant at) {
+        this.repositoriesSyncStatus = status;
+        this.repositoriesSyncMessage = message == null || message.length() <= 1000 ? message : message.substring(0, 999) + "…";
+        this.repositoriesTruncated = truncated;
+        this.repositoriesSyncedAt = at;
+    }
+
+    public Instant getRemovedAt() {
+        return removedAt;
+    }
+
+    public boolean isRemoved() {
+        return removedAt != null;
+    }
+
+    public boolean isAddedManually() {
+        return addedManually;
+    }
+
+    public void setAddedManually(boolean addedManually) {
+        this.addedManually = addedManually;
+    }
+
+    public Instant getRepositoriesSyncedAt() {
+        return repositoriesSyncedAt;
+    }
+
+    public String getRepositoriesSyncStatus() {
+        return repositoriesSyncStatus;
+    }
+
+    public String getRepositoriesSyncMessage() {
+        return repositoriesSyncMessage;
+    }
+
+    public boolean isRepositoriesTruncated() {
+        return repositoriesTruncated;
     }
 
     public UUID getId() {
