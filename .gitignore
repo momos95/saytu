@@ -20,3 +20,11 @@ out-tsc/
 *.iml
 .vscode/
 .DS_Store
+
+# runtime data
+data/*
+!data/local-repos/
+!data/ca/
+data/local-repos/*
+data/ca/*
+!data/**/.gitkeep

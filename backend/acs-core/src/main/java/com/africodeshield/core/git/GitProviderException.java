@@ -22,8 +22,13 @@ public class GitProviderException extends RuntimeException {
         TLS_ERROR(false),
         /** 5xx. */
         SERVER_ERROR(true),
-        /** Response could not be understood (unsupported version, unexpected payload). */
-        UNEXPECTED_RESPONSE(false);
+        /** Response could not be understood (unsupported version, unexpected payload, redirect). */
+        UNEXPECTED_RESPONSE(false),
+        /**
+         * Destination refused by AfriCodeShield's own policy before any request was sent: cloud metadata
+         * or link-local address, plain HTTP not allowed, local path outside the configured root.
+         */
+        BLOCKED_BY_POLICY(false);
 
         private final boolean retryable;
 

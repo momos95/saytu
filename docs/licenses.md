@@ -29,6 +29,10 @@ utilisés comme programmes séparés ou bibliothèques liées dynamiquement, san
 | nginx (image `nginx-unprivileged`) | serveur web | BSD-2-Clause | connue |
 | Ollama (optionnel) | LLM local | MIT | connue |
 
+Phase 2 : **aucune dépendance ajoutée**. Les connecteurs Git (`acs-git`) n'utilisent que le JDK et
+l'authentification de l'interface n'utilise aucune bibliothèque OIDC (ADR-0005, ADR-0006). La locale
+française d'Angular (`@angular/common/locales/fr`) fait partie d'Angular (MIT).
+
 ## Scanners (phases 4-5)
 
 | Outil | Licence du moteur | Données / règles embarquées | Point d'attention |

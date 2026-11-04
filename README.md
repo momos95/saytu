@@ -4,8 +4,8 @@ Plateforme **on-premise** et open source d'audit automatisé de la sécurité et
 code, multi-organisations et multi-dépôts (GitLab, GitHub, Bitbucket, dépôts locaux).
 Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre infrastructure.
 
-> **État : phase 1 / 8** — architecture, modèle de données, structure du monorepo et socle
-> Docker Compose. Aucun scan n'est encore exécutable. Détail : [docs/roadmap.md](docs/roadmap.md).
+> **État : phase 2 / 8** — connexion via Keycloak et gestion des connexions Git (enregistrement,
+> chiffrement des tokens, test). Aucun scan n'est encore exécutable. Détail : [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
 
@@ -15,6 +15,8 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 | [docs/data-model.md](docs/data-model.md) | schéma PostgreSQL et règles de cycle de vie |
 | [docs/adr/](docs/adr) | décisions d'architecture |
 | [docs/licenses.md](docs/licenses.md) | licences des composants et des règles |
+| [docs/git-connections.md](docs/git-connections.md) | créer les tokens GitLab, GitHub, Bitbucket ; lire un résultat de test |
+| [docs/security.md](docs/security.md) | mesures de sécurité et risques résiduels |
 | [docs/roadmap.md](docs/roadmap.md) | phases et état d'avancement |
 
 ## Prérequis
@@ -23,7 +25,7 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 * Pour développer : JDK 21, Maven 3.9, Node.js 22, PostgreSQL 16 (binaires) pour
   `scripts/verify-schema.sh`
 
-## Démarrage (phase 1)
+## Démarrage
 
 ```bash
 scripts/generate-secrets.sh          # crée .env (mode 600) avec des secrets aléatoires
@@ -31,7 +33,9 @@ docker compose up -d --build
 docker compose ps                    # postgres, keycloak, api, web doivent être "healthy"
 ```
 
-* Interface : <http://localhost:8080> (coquille de navigation ; les pages indiquent leur phase de livraison)
+* Interface : <http://localhost:8080> — connexion via Keycloak, puis **Connexions Git** pour enregistrer
+  et tester vos forges (voir [docs/git-connections.md](docs/git-connections.md)). Les autres pages
+  indiquent leur phase de livraison.
 * Keycloak : <http://localhost:8180> — realm `africodeshield`, utilisateur `admin`, mot de passe
   temporaire dans `.env` (`ACS_INITIAL_ADMIN_PASSWORD`) ; changement et TOTP exigés à la première
   connexion.
@@ -41,6 +45,17 @@ En production, placez `web` et `keycloak` derrière un reverse proxy TLS et rens
 `ACS_PUBLIC_URL` / `ACS_KEYCLOAK_PUBLIC_URL` en `https://`.
 
 LLM local optionnel (phase 7) : `docker compose --profile ai up -d`.
+
+## Configuration utile
+
+| Variable | Rôle |
+|---|---|
+| `ACS_MASTER_KEY` | clé de chiffrement des tokens (générée par `scripts/generate-secrets.sh`) ; à sauvegarder à part |
+| `ACS_PREVIOUS_MASTER_KEYS` | anciennes clés pendant une rotation |
+| `ACS_GIT_CA_BUNDLE_IN_CONTAINER` | certificat PEM d'une autorité interne, déposé dans `./data/ca/` |
+| `ACS_LOCAL_REPOS_HOST_DIR` | répertoire de dépôts locaux, monté en lecture seule sur `/srv/git` |
+| `ACS_JAVA_PROXY_OPTS` | proxy sortant vers github.com, gitlab.com… |
+| `ACS_GIT_ALLOW_PLAIN_HTTP` | autoriser les forges en `http://` (réseau isolé uniquement) |
 
 ## Développement
 
@@ -61,7 +76,8 @@ PostgreSQL, puis `mvn -f backend/pom.xml -pl acs-app spring-boot:run` avec les v
 ## Structure
 
 ```
-backend/acs-core   domaine et ports, sans framework (empreintes, dédoublonnage, expurgation)
+backend/acs-core   domaine et ports, sans framework (empreintes, dédoublonnage, expurgation, chiffrement)
+backend/acs-git    connecteurs GitLab / GitHub / Bitbucket / local, JDK seul
 backend/acs-app    application Spring Boot (API ; worker en phase 4)
 frontend/          Angular 20
 infra/             realm Keycloak, initialisation PostgreSQL

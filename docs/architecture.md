@@ -57,7 +57,8 @@ Le réseau `data` est `internal: true` : PostgreSQL et Ollama n'ont aucune route
 africodeshield/
 ├── backend/                 Maven multi-module (Java 21)
 │   ├── acs-core/            domaine + ports, AUCUNE dépendance framework
-│   └── acs-app/             Spring Boot : adaptateurs, persistance, REST, worker
+│   ├── acs-git/             connecteurs Git, JDK seul (java.net.http) — ADR-0005
+│   └── acs-app/             Spring Boot : persistance, REST, sécurité, worker
 ├── frontend/                Angular 20 standalone, zoneless, signals
 ├── infra/                   realm Keycloak, init PostgreSQL
 ├── scripts/                 génération des secrets, vérification du schéma
@@ -71,11 +72,19 @@ africodeshield/
 |---|---|---|
 | `core.domain` | `Severity`, `FindingType`, `FindingStatus`, `ScanStatus`, `ScannerExecutionStatus`, `ScannerId`, `GitProviderType`, `NamespaceKind` | ✅ phase 1 |
 | `core.finding` | `NormalizedFinding`, `FindingFingerprint` (identifiant stable), `FindingDeduplicator`, `SecretRedactor` | ✅ phase 1 |
-| `core.git` | port `GitProvider` (+ `GitConnectionSpec`, pagination par curseur, `GitProviderException` typée) | ✅ interface ; implémentations phases 2-3 |
+| `core.git` | port `GitProvider` (+ `GitConnectionSpec`, pagination par curseur, `GitProviderException` typée) | ✅ interface |
 | `core.scan` | port `ScannerAdapter`, `CommandSpec` (argv sans shell, env filtré), `ScanContext`, `ResourceLimits` | ✅ interface ; implémentations phases 4-5 |
 | `core.remediation` | port `RemediationProvider` | ✅ interface ; implémentations phase 7 |
 | `core.report` | `ReportFormat` | ✅ ; générateurs phase 6 |
-| `core.security` | `SensitiveValue` (secret jamais imprimable) | ✅ |
+| `core.security` | `SensitiveValue` (secret jamais imprimable), `TokenCipher` (AES-256-GCM, rotation de clé) | ✅ phases 1-2 |
+
+### 3.1 bis `acs-git` — connecteurs (phase 2)
+
+| Package | Contenu | État |
+|---|---|---|
+| `git.http` | `GitHttpClient` (seule sortie réseau), `EndpointPolicy` (anti-SSRF), `HttpErrorClassifier`, `TrustConfig` (CA interne), `Auth` | ✅ |
+| `git.json` | lecteur JSON strict et borné | ✅ |
+| `git.provider` | GitLab, GitHub, Bitbucket Cloud, Bitbucket Data Center, local : **test de connexion** ✅ ; découverte (namespaces, dépôts, branches) **phase 3** | partiel |
 
 `acs-core` est compilable et testable avec le seul JDK : c'est là que se trouve la logique critique
 (empreintes, dédoublonnage, expurgation, invariants de sécurité des commandes).
@@ -92,8 +101,10 @@ ArchUnit, `ArchitectureTest`).
 | `app.scanner` | configuration des scanners | ✅ lecture |
 | `app.system` | `GET /api/v1/system/info` (version, scanners configurés, rôles de l'appelant) | ✅ |
 | `app.web` | erreurs RFC 9457, sans trace ni SQL côté client | ✅ |
-| `app.vault` **[phase 2]** | chiffrement AES-256-GCM des tokens, rotation de clé | — |
-| `app.git.{gitlab,github,bitbucket,local}` **[phases 2-3]** | adaptateurs `GitProvider` | — |
+| `app.vault` | `TokenVault` : clé maître, chiffrement des tokens | ✅ phase 2 |
+| `app.git` | câblage Spring d'`acs-git` (`acs.git.*`) | ✅ phase 2 |
+| `app.audit` | journal `audit_event` des actions sensibles | ✅ phase 2 |
+| `app.source` | + `GitConnectionService` / `GitConnectionController` (`/api/v1/git-connections`) | ✅ phase 2 |
 | `app.scan` **[phase 4]** | orchestration : runs, jobs, file, worker, sandbox | — |
 | `app.scanners.*` **[phases 4-5]** | adaptateurs `ScannerAdapter` | — |
 | `app.scoring` **[phase 5]** | calcul et snapshots de scores | — |
@@ -130,7 +141,7 @@ puisqu'il ne parle qu'à PostgreSQL et aux forges Git).
 
 | Secret | Stockage | Protection |
 |---|---|---|
-| Tokens Git, secrets webhook | `*_ciphertext BYTEA` | AES-256-GCM, IV aléatoire 96 bits, `key_id` pour la rotation, clé maître `ACS_MASTER_KEY` hors base **[phase 2]** |
+| Tokens Git, secrets webhook | `*_ciphertext BYTEA` | AES-256-GCM, IV aléatoire 96 bits, données associées = ligne propriétaire, `key_id` pour la rotation, clé maître `ACS_MASTER_KEY` hors base ✅ |
 | Token en mémoire | `SensitiveValue` (`char[]`, `toString()` masqué, effaçable) | ✅ |
 | URL de clone | jamais de credentials (contrainte `CHECK` en base + validation entité) | ✅ |
 | Preuves de findings | `SecretRedactor` appliqué dans le constructeur de `NormalizedFinding` | ✅ |
@@ -290,6 +301,8 @@ Les bases de vulnérabilités (Trivy DB, NVD pour Dependency-Check) et les jeux 
 * [ADR-0002](adr/0002-file-postgresql.md) — File d'exécution dans PostgreSQL
 * [ADR-0003](adr/0003-isolation-scanners.md) — Isolation des scanners sans socket Docker
 * [ADR-0004](adr/0004-chiffrement-tokens.md) — Chiffrement applicatif des tokens
+* [ADR-0005](adr/0005-connecteurs-git-sans-dependance.md) — Connecteurs Git sans dépendance
+* [ADR-0006](adr/0006-oidc-spa.md) — OIDC code + PKCE dans l'interface, sans bibliothèque
 
 ## 11. Limites connues de l'architecture
 

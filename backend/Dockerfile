@@ -8,9 +8,11 @@ WORKDIR /src
 # Dependency layer cached independently of the sources
 COPY pom.xml .
 COPY acs-core/pom.xml acs-core/
+COPY acs-git/pom.xml acs-git/
 COPY acs-app/pom.xml acs-app/
 RUN --mount=type=cache,target=/root/.m2 mvn -B -q -pl acs-app -am dependency:go-offline -DskipTests || true
 COPY acs-core/src acs-core/src
+COPY acs-git/src acs-git/src
 COPY acs-app/src acs-app/src
 # Unit tests run here; Testcontainers integration tests (*IT) need Docker and run in CI with `mvn verify`.
 ARG SKIP_TESTS=false

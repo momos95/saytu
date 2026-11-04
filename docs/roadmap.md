@@ -3,13 +3,41 @@
 | Phase | Contenu | État |
 |---|---|---|
 | 1 | Architecture, modèle de données, monorepo, Docker Compose | ✅ livrée (voir détail ci-dessous) |
-| 2 | Authentification Keycloak dans l'UI, coffre de tokens AES-GCM, CRUD + test des connexions Git | à faire |
+| 2 | Authentification Keycloak dans l'UI, coffre de tokens AES-GCM, CRUD + test des connexions Git | ✅ livrée (voir détail) |
 | 3 | Découverte organisations / dépôts / branches, sélection, configuration des branches | à faire |
 | 4 | Worker, file d'exécution, sandbox, clone sécurisé, Opengrep, Trivy, Gitleaks | à faire |
 | 5 | PMD, Checkstyle, normalisation complète, scoring et couverture | à faire |
 | 6 | Dashboard Angular, détail dépôt, liste/détail des vulnérabilités, rapports HTML/PDF/JSON/SARIF | à faire |
 | 7 | Planification cron, historique, comparaison de scans, webhooks, recommandations, Ollama | à faire |
 | 8 | Durcissement, tests de bout en bout, SBOM, guides d'exploitation et de mise à jour hors ligne | à faire |
+
+## Phase 2 — détail
+
+### Livré et vérifié dans l'environnement de développement
+* `TokenCipher` (AES-256-GCM, données associées, rotation) — 9 tests.
+* Module `acs-git` (JDK seul) — **62 tests exécutés, 62 réussis**, contre un vrai serveur HTTP local :
+  * test de connexion GitLab (identité, version, scopes via `personal_access_tokens/self`, expiration,
+    droits d'écriture superflus), GitHub / GHES (scopes classiques, tokens fine-grained, expiration,
+    limite de débit), Bitbucket Cloud (API token Basic e-mail, access token Bearer), Bitbucket Data
+    Center (Bearer, version, utilisateur), dépôts locaux (racine imposée, liens symboliques) ;
+  * politique anti-SSRF, redirections non suivies, corps plafonné, erreurs typées sans token ;
+  * normalisation des URL et ressaisie obligatoire du token en cas de changement d'hôte.
+* Migration V2 appliquée sur PostgreSQL 16 : 21 contrôles de contraintes réussis.
+* Frontend : cœur OIDC (PKCE, état, nonce, échange, rafraîchissement, validation de l'ID token,
+  déconnexion) et filtre des URL d'API — **14 specs exécutées dans Node, 14 réussies**, typage strict.
+
+### Livré, écrit pour compiler, **non exécuté** (registres Maven/npm et Docker inaccessibles)
+* Spring : `TokenVault`, `GitConnectionService`, `GitConnectionController`, `AuditService`, entités ;
+  tests `GitConnectionServiceTest`, `GitConnectionControllerSecurityTest`, `TokenVaultTest`,
+  `GitConnectionApiIT` (Testcontainers), règles ArchUnit.
+* Angular : `AuthService`, intercepteur, garde, page de connexion, page Connexions Git (liste, test,
+  création, modification, suppression), specs Karma correspondantes.
+
+### Limites connues de la phase 2
+* La découverte des organisations, dépôts et branches (phase 3) n'existe pas encore : les méthodes
+  correspondantes des connecteurs lèvent `UnsupportedOperationException`.
+* Gestion des utilisateurs dans l'interface : phase 7 (en attendant, console Keycloak).
+* Pas de déconnexion par iframe de session (voir ADR-0006).
 
 ## Phase 1 — détail
 

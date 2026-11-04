@@ -27,6 +27,7 @@
 
     <modules>
         <module>acs-core</module>
+        <module>acs-git</module>
         <module>acs-app</module>
     </modules>
 
@@ -42,6 +43,11 @@
             <dependency>
                 <groupId>com.africodeshield</groupId>
                 <artifactId>acs-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.africodeshield</groupId>
+                <artifactId>acs-git</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

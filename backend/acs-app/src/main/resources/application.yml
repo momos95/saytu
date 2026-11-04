@@ -41,6 +41,18 @@ acs:
     expose-api-docs: ${ACS_EXPOSE_API_DOCS:false}
   cors:
     allowed-origins: ${ACS_CORS_ALLOWED_ORIGINS:http://localhost:4200}
+  vault:
+    # base64 of 32 random bytes; the application refuses to start without it
+    master-key: ${ACS_MASTER_KEY:}
+    previous-master-keys: ${ACS_PREVIOUS_MASTER_KEYS:}
+  git:
+    connect-timeout: ${ACS_GIT_CONNECT_TIMEOUT:10s}
+    request-timeout: ${ACS_GIT_REQUEST_TIMEOUT:30s}
+    allow-plain-http: ${ACS_GIT_ALLOW_PLAIN_HTTP:false}
+    allow-loopback: ${ACS_GIT_ALLOW_LOOPBACK:false}
+    ca-bundle: ${ACS_GIT_CA_BUNDLE:}
+    local-repos-root: ${ACS_LOCAL_REPOS_ROOT:}
+    use-system-proxy: ${ACS_GIT_USE_SYSTEM_PROXY:true}
 
 springdoc:
   api-docs:

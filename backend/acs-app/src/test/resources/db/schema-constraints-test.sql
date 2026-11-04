@@ -31,6 +31,13 @@ SELECT pg_temp.expect_failure(
     $q$INSERT INTO git_connection (name, provider_type, base_url, created_by) VALUES ('y', 'SVN', 'https://h', 't')$q$,
     'unknown provider rejected');
 
+SELECT pg_temp.expect_failure(
+    $q$UPDATE git_connection SET verify_tls = FALSE WHERE name = 'gl'$q$, 'TLS verification cannot be disabled (V2)');
+UPDATE git_connection SET last_test_status = 'BLOCKED_BY_POLICY', last_test_warnings = '{"plain http"}' WHERE name = 'gl';
+SELECT 'ok - BLOCKED_BY_POLICY test status accepted (V2)';
+SELECT pg_temp.expect_failure(
+    $q$UPDATE git_connection SET last_test_status = 'MAYBE' WHERE name = 'gl'$q$, 'unknown test status rejected (V2)');
+
 INSERT INTO source_repository (id, connection_id, external_id, full_name, name, clone_url)
 VALUES ('00000000-0000-0000-0000-000000000010', '00000000-0000-0000-0000-000000000001', '42', 'g/app', 'app',
         'https://gitlab.example.org/g/app.git');

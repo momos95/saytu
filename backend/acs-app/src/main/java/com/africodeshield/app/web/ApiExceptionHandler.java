@@ -1,5 +1,6 @@
 package com.africodeshield.app.web;
 
+import com.africodeshield.core.security.TokenCipher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,24 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     ProblemDetail badRequest(IllegalArgumentException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    ProblemDetail notFound(ResourceNotFoundException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    ProblemDetail conflict(ConflictException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    /** Raised when the vault cannot decrypt (master key changed without keeping the previous one). */
+    @ExceptionHandler(TokenCipher.TokenDecryptionException.class)
+    ProblemDetail undecryptable(TokenCipher.TokenDecryptionException e) {
+        log.error("Stored secret cannot be decrypted: {}", e.getMessage());
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY,
+                "The stored token cannot be decrypted with the current master key. Re-enter the token.");
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)

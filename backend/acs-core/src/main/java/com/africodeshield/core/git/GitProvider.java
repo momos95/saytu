@@ -83,21 +83,32 @@ public interface GitProvider {
     enum Visibility { PUBLIC, INTERNAL, PRIVATE }
 
     /**
-     * @param grantedScopes scopes reported by the platform when available (GitLab / GitHub classic tokens)
-     * @param warnings      non-blocking issues, e.g. "token expires in 5 days", "TLS verification disabled"
+     * @param grantedScopes  scopes reported by the platform when available (GitLab / GitHub classic tokens)
+     * @param warnings       non-blocking issues, e.g. "token expires in 5 days", "anonymous access"
+     * @param tokenExpiresAt token expiry when the platform reports it, else {@code null}
      */
     record ConnectionTestResult(boolean success, String authenticatedAs, String serverVersion,
-                                List<String> grantedScopes, List<String> warnings,
+                                List<String> grantedScopes, List<String> warnings, Instant tokenExpiresAt,
                                 GitProviderException.Kind errorKind, String errorMessage) {
 
+        public ConnectionTestResult {
+            grantedScopes = grantedScopes == null ? List.of() : List.copyOf(grantedScopes);
+            warnings = warnings == null ? List.of() : List.copyOf(warnings);
+        }
+
         public static ConnectionTestResult ok(String authenticatedAs, String serverVersion,
-                                              List<String> scopes, List<String> warnings) {
-            return new ConnectionTestResult(true, authenticatedAs, serverVersion,
-                    List.copyOf(scopes), List.copyOf(warnings), null, null);
+                                              List<String> scopes, List<String> warnings, Instant tokenExpiresAt) {
+            return new ConnectionTestResult(true, authenticatedAs, serverVersion, scopes, warnings, tokenExpiresAt,
+                    null, null);
         }
 
         public static ConnectionTestResult failure(GitProviderException e) {
-            return new ConnectionTestResult(false, null, null, List.of(), List.of(), e.kind(), e.getMessage());
+            return failure(e, List.of());
+        }
+
+        /** Failure that still carries what was learnt before the check failed (e.g. scopes, warnings). */
+        public static ConnectionTestResult failure(GitProviderException e, List<String> warnings) {
+            return new ConnectionTestResult(false, null, null, List.of(), warnings, null, e.kind(), e.getMessage());
         }
     }
 }

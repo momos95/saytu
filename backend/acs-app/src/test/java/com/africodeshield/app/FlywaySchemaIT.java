@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Flyway applies the migrations and Hibernate's {@code ddl-auto=validate} proves that the JPA
  * entities match the schema. Requires Docker; run with {@code mvn verify}.
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE, properties = TestKeys.MASTER_KEY_PROPERTY)
 @Testcontainers
 class FlywaySchemaIT {
 

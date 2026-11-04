@@ -1,24 +1,34 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { NAV_ITEMS, routes } from '../app.routes';
+import { routes } from '../app.routes';
+import { AuthService } from '../core/auth/auth.service';
+import { NAV_ITEMS } from '../navigation';
+import { fakeTokens } from '../testing/fake-session';
 import { Shell } from './shell';
 
 describe('Shell', () => {
+  let auth: AuthService;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [Shell],
-      providers: [provideZonelessChangeDetection(), provideRouter(routes)],
+      providers: [provideZonelessChangeDetection(), provideRouter(routes), provideHttpClient(), provideHttpClientTesting()],
     });
+    auth = TestBed.inject(AuthService);
+    auth.setTokensForTesting(fakeTokens(['ADMIN', 'AUDITOR', 'VIEWER']));
   });
 
-  it('lists every planned page in the navigation', async () => {
+  it('lists every page and shows the signed-in user with roles', async () => {
     const fixture = TestBed.createComponent(Shell);
     await fixture.whenStable();
-    const links = fixture.nativeElement.querySelectorAll('nav a') as NodeListOf<HTMLAnchorElement>;
-    expect(links.length).toBe(NAV_ITEMS.length);
-    expect(links[0].textContent).toContain('Tableau de bord');
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelectorAll('nav a').length).toBe(NAV_ITEMS.length);
+    expect(el.querySelector('[data-testid="user-name"]')?.textContent).toContain('Awa Diop');
+    expect(el.textContent).toContain('ADMIN');
   });
 
   it('toggles the mobile menu', async () => {
@@ -28,19 +38,19 @@ describe('Shell', () => {
     button.click();
     await fixture.whenStable();
     expect(button.getAttribute('aria-expanded')).toBe('true');
-    expect((fixture.nativeElement.querySelector('nav') as HTMLElement).classList).toContain('open');
   });
 
-  it('routes to a placeholder that states the delivery phase', async () => {
+  it('routes pages not delivered yet to a placeholder stating their phase', async () => {
     const harness = await RouterTestingHarness.create();
-    await harness.navigateByUrl('/connections');
-    const badge = harness.routeNativeElement?.querySelector('[data-testid="phase-badge"]');
-    expect(badge?.textContent).toContain('Phase 2');
+    await harness.navigateByUrl('/repositories');
+    expect(harness.routeNativeElement?.querySelector('[data-testid="phase-badge"]')?.textContent).toContain('Phase 3');
   });
 
-  it('redirects unknown URLs to the dashboard', async () => {
+  it('starts sign-in instead of rendering protected pages when signed out', async () => {
+    auth.setTokensForTesting(null);
+    const login = spyOn(auth, 'login').and.resolveTo();
     const harness = await RouterTestingHarness.create();
-    await harness.navigateByUrl('/does-not-exist');
-    expect(harness.routeNativeElement?.textContent).toContain('Tableau de bord');
+    await harness.navigateByUrl('/findings');
+    expect(login).toHaveBeenCalledWith('/findings');
   });
 });

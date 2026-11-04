@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { NAV_ITEMS } from '../app.routes';
+import { NAV_ITEMS } from '../navigation';
+import { AuthService } from '../core/auth/auth.service';
 
-/** Application frame: header, collapsible side navigation (mobile) and routed content. */
+/** Application frame for signed-in users: header, collapsible side navigation, routed content. */
 @Component({
   selector: 'acs-shell',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
@@ -12,7 +13,13 @@ import { NAV_ITEMS } from '../app.routes';
       <button type="button" class="menu-toggle" (click)="menuOpen.set(!menuOpen())"
               [attr.aria-expanded]="menuOpen()" aria-controls="acs-nav" aria-label="Menu">☰</button>
       <a routerLink="/dashboard" class="brand"><span class="logo" aria-hidden="true">◆</span> AfriCodeShield</a>
-      <span class="env">On-premise</span>
+      <div class="user">
+        <span class="name" data-testid="user-name">{{ auth.displayName() }}</span>
+        @for (role of auth.roles(); track role) {
+          <span class="role">{{ role }}</span>
+        }
+        <button type="button" class="logout" (click)="auth.logout()">Déconnexion</button>
+      </div>
     </header>
     <div class="layout">
       <nav id="acs-nav" [class.open]="menuOpen()" aria-label="Navigation principale">
@@ -35,6 +42,7 @@ import { NAV_ITEMS } from '../app.routes';
   styleUrl: './shell.scss',
 })
 export class Shell {
+  readonly auth = inject(AuthService);
   readonly navItems = NAV_ITEMS;
   readonly menuOpen = signal(false);
 }

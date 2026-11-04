@@ -8,8 +8,12 @@
 }
 .brand { display: flex; align-items: center; gap: .5rem; font-weight: 700; color: var(--acs-text); text-decoration: none; }
 .logo { color: var(--acs-accent); }
-.env { margin-left: auto; font-size: .75rem; color: var(--acs-muted); border: 1px solid var(--acs-border);
-       border-radius: 999px; padding: .1rem .55rem; }
+.user { margin-left: auto; display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.name { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 18ch; }
+.role { font-size: .7rem; font-weight: 600; color: var(--acs-accent); background: var(--acs-accent-soft);
+        border-radius: 999px; padding: .1rem .5rem; }
+.logout { font: inherit; font-size: .85rem; background: none; border: 1px solid var(--acs-border); border-radius: 6px;
+          padding: .3rem .6rem; color: var(--acs-text); cursor: pointer; }
 .menu-toggle { display: none; background: none; border: 0; font-size: 1.25rem; color: var(--acs-text); cursor: pointer; }
 
 .layout { display: flex; flex: 1; }
@@ -28,4 +32,5 @@ main { flex: 1; min-width: 0; padding: 24px; }
         transition: transform .2s ease; z-index: 9; }
   nav.open { transform: none; box-shadow: 0 8px 24px rgb(0 0 0 / 20%); }
   main { padding: 16px; }
+  .name, .role { display: none; }
 }

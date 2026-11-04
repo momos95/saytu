@@ -12,8 +12,11 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -66,6 +69,19 @@ public class GitConnectionEntity {
     @Column(name = "last_tested_at")
     private Instant lastTestedAt;
 
+    @Column(name = "last_test_identity")
+    private String lastTestIdentity;
+
+    @Column(name = "last_test_server_version")
+    private String lastTestServerVersion;
+
+    @JdbcTypeCode(SqlTypes.ARRAY)
+    @Column(name = "last_test_warnings", nullable = false, columnDefinition = "text[]")
+    private String[] lastTestWarnings = new String[0];
+
+    @Column(name = "token_expires_at")
+    private Instant tokenExpiresAt;
+
     @Column(name = "created_by", nullable = false, updatable = false)
     private String createdBy;
 
@@ -114,10 +130,33 @@ public class GitConnectionEntity {
         return tokenCiphertext != null;
     }
 
-    public void recordTest(String status, String message, Instant at) {
+    /** Stores the outcome of the latest connection test (never contains the token). */
+    public void recordTest(String status, String message, String identity, String serverVersion,
+                           List<String> warnings, Instant tokenExpiresAt, Instant at) {
         this.lastTestStatus = status;
-        this.lastTestMessage = message;
+        this.lastTestMessage = truncate(message, 1000);
+        this.lastTestIdentity = truncate(identity, 255);
+        this.lastTestServerVersion = truncate(serverVersion, 255);
+        this.lastTestWarnings = warnings == null ? new String[0] : warnings.toArray(String[]::new);
+        if (tokenExpiresAt != null || "OK".equals(status)) {
+            this.tokenExpiresAt = tokenExpiresAt;
+        }
         this.lastTestedAt = at;
+    }
+
+    /** A new or removed token invalidates what the previous test learnt. */
+    public void clearTestResult() {
+        this.lastTestStatus = null;
+        this.lastTestMessage = null;
+        this.lastTestIdentity = null;
+        this.lastTestServerVersion = null;
+        this.lastTestWarnings = new String[0];
+        this.tokenExpiresAt = null;
+        this.lastTestedAt = null;
+    }
+
+    private static String truncate(String value, int max) {
+        return value == null || value.length() <= max ? value : value.substring(0, max - 1) + "…";
     }
 
     public UUID getId() {
@@ -172,8 +211,12 @@ public class GitConnectionEntity {
         return verifyTls;
     }
 
+    /** TLS verification cannot be disabled (database constraint since V2); trust an internal CA instead. */
     public void setVerifyTls(boolean verifyTls) {
-        this.verifyTls = verifyTls;
+        if (!verifyTls) {
+            throw new IllegalArgumentException("TLS verification cannot be disabled; configure ACS_GIT_CA_BUNDLE");
+        }
+        this.verifyTls = true;
     }
 
     public boolean isEnabled() {
@@ -194,6 +237,22 @@ public class GitConnectionEntity {
 
     public Instant getLastTestedAt() {
         return lastTestedAt;
+    }
+
+    public String getLastTestIdentity() {
+        return lastTestIdentity;
+    }
+
+    public String getLastTestServerVersion() {
+        return lastTestServerVersion;
+    }
+
+    public List<String> getLastTestWarnings() {
+        return lastTestWarnings == null ? List.of() : List.of(lastTestWarnings);
+    }
+
+    public Instant getTokenExpiresAt() {
+        return tokenExpiresAt;
     }
 
     public String getCreatedBy() {

@@ -21,6 +21,21 @@ class ArchitectureTest {
             .because("acs-core holds the domain and the ports; adapters live in acs-app");
 
     @ArchTest
+    static final ArchRule gitProvidersAreFrameworkFree = noClasses()
+            .that().resideInAPackage("com.africodeshield.git..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "org.springframework..", "jakarta..", "org.hibernate..", "com.fasterxml..", "com.africodeshield.app..")
+            .because("acs-git handles tokens and talks to external hosts: no transitive dependency (ADR-0005)");
+
+    @ArchTest
+    static final ArchRule onlyTheVaultUsesTheCipher = noClasses()
+            .that().resideInAPackage("com.africodeshield.app..")
+            .and().resideOutsideOfPackages("com.africodeshield.app.vault..", "com.africodeshield.app.web..",
+                    "com.africodeshield.app.source..")
+            .should().dependOnClassesThat().haveSimpleName("TokenCipher")
+            .because("secrets are encrypted and decrypted through TokenVault only");
+
+    @ArchTest
     static final ArchRule coreDoesNotDependOnApp = noClasses()
             .that().resideInAPackage("com.africodeshield.core..")
             .should().dependOnClassesThat().resideInAPackage("com.africodeshield.app..");
