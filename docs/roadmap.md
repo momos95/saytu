@@ -33,6 +33,16 @@
 * Angular : `AuthService`, intercepteur, garde, page de connexion, page Connexions Git (liste, test,
   création, modification, suppression), specs Karma correspondantes.
 
+### Validé en conditions réelles (4 novembre 2026, poste Windows sans Docker)
+* `mvn package` : compilation de tous les modules et tests unitaires ; démarrage Spring Boot 3.5.7,
+  migrations V1 + V2 appliquées, validation Hibernate du schéma réussie (PostgreSQL 13.16).
+* Connexion via Keycloak (code + PKCE), affichage de l'utilisateur et des rôles.
+* Connexion gitlab.com testée avec un vrai token : identité, version, scopes `read_api` +
+  `read_repository`, expiration ; token stocké chiffré.
+* Correctif issu de ce test : entité `SourceRepositoryEntity` rendue proxyable (HHH000305).
+* Constat : derrière un proxy d'inspection HTTPS, l'autorité du proxy doit être ajoutée
+  (`ACS_GIT_CA_BUNDLE`) ; message d'erreur et guide complétés.
+
 ### Limites connues de la phase 2
 * La découverte des organisations, dépôts et branches (phase 3) n'existe pas encore : les méthodes
   correspondantes des connecteurs lèvent `UnsupportedOperationException`.

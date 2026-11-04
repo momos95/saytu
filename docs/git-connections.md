@@ -30,8 +30,29 @@ basses des plateformes.
 | Limite de requêtes atteinte | quota de l'API épuisé | réessayer après le délai indiqué |
 | Introuvable | mauvaise URL | vérifier l'URL ou l'URL d'API (options avancées) |
 | Serveur injoignable | DNS, pare-feu, proxy, délai dépassé | vérifier le réseau ; proxy via `ACS_JAVA_PROXY_OPTS` |
-| Certificat TLS non reconnu | autorité interne inconnue | `ACS_GIT_CA_BUNDLE_IN_CONTAINER` |
+| Certificat TLS non reconnu | autorité interne, ou proxy / antivirus qui inspecte le HTTPS | voir « Proxy d'inspection HTTPS » ci-dessous |
 | Réponse inattendue | redirection, page HTML, mauvais produit | vérifier le type de plateforme et l'URL |
 | Destination interdite | politique de sécurité (adresse de métadonnées, HTTP non chiffré, chemin hors `/srv/git`) | voir [security.md](security.md) |
 
 Changer l'adresse d'une connexion vers un autre serveur oblige à ressaisir le token.
+
+## Proxy d'inspection HTTPS ou autorité interne
+
+Sur un réseau d'entreprise, une passerelle (Netskope, Zscaler, Fortinet, Palo Alto…) ou un antivirus
+(Kaspersky, ESET, Avast…) peut déchiffrer le HTTPS et le re-signer avec sa propre autorité. Le
+navigateur l'accepte (autorité installée dans le système) mais pas Java : le test affiche
+« Certificat TLS non reconnu », même pour gitlab.com ou github.com.
+
+**Diagnostic** : ouvrir la forge dans le navigateur, cadenas → certificat → émetteur. Si l'émetteur
+est le nom de l'entreprise, d'un proxy ou d'un antivirus, c'est une interception.
+
+**Correction** : exporter ce certificat d'autorité au format Base-64 (PEM, `.cer` ou `.pem`), puis :
+
+* Docker Compose : le déposer dans `./data/ca/` et renseigner
+  `ACS_GIT_CA_BUNDLE_IN_CONTAINER=/etc/africodeshield/ca/<fichier>` dans `.env` ;
+* exécution directe : `ACS_GIT_CA_BUNDLE=<chemin du fichier>` avant `java -jar` ;
+* poste Windows sans Docker, alternative rapide : faire utiliser à Java le magasin de Windows :
+  `java -Djavax.net.ssl.trustStore=NONE -Djavax.net.ssl.trustStoreType=Windows-ROOT -jar ...`
+
+Le proxy d'inspection voit passer les requêtes, y compris l'en-tête qui porte le token : utilisez un
+token en lecture seule, à durée de vie courte.

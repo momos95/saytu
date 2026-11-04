@@ -72,8 +72,9 @@ public final class HttpErrorClassifier {
         String host = uri.getHost();
         if (e instanceof SSLException) {
             return new GitProviderException(Kind.TLS_ERROR, "TLS handshake with " + host + " failed: the certificate "
-                    + "is not trusted or does not match the host. For an internal CA, mount its certificate and set "
-                    + "ACS_GIT_CA_BUNDLE.", null, e);
+                    + "is not trusted or does not match the host. If an HTTPS inspection proxy or antivirus re-signs "
+                    + "traffic (Netskope, Zscaler, Fortinet, Kaspersky...) or the platform uses an internal CA, add that "
+                    + "CA certificate with ACS_GIT_CA_BUNDLE (see docs/git-connections.md).", null, e);
         }
         if (e instanceof HttpTimeoutException) {
             return new GitProviderException(Kind.UNREACHABLE, "Timed out while contacting " + host + ".", null, e);

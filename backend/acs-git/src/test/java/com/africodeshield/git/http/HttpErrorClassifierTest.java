@@ -92,7 +92,9 @@ class HttpErrorClassifierTest {
     @Test
     void ioExceptionsAreTyped() {
         assertEquals(Kind.TLS_ERROR, HttpErrorClassifier.fromIOException(new SSLHandshakeException("PKIX"), uri).kind());
-        assertTrue(HttpErrorClassifier.fromIOException(new SSLHandshakeException("PKIX"), uri).getMessage().contains("ACS_GIT_CA_BUNDLE"));
+        String tls = HttpErrorClassifier.fromIOException(new SSLHandshakeException("PKIX"), uri).getMessage();
+        assertTrue(tls.contains("ACS_GIT_CA_BUNDLE"));
+        assertTrue(tls.contains("inspection proxy"));
         assertEquals(Kind.UNREACHABLE, HttpErrorClassifier.fromIOException(new HttpTimeoutException("t"), uri).kind());
         assertEquals(Kind.UNREACHABLE, HttpErrorClassifier.fromIOException(new ConnectException("c"), uri).kind());
         assertTrue(Kind.UNREACHABLE.isRetryable());
