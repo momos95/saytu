@@ -15,7 +15,7 @@ export const APP_ROLES = ['ADMIN', 'AUDITOR', 'VIEWER'] as const;
 export type AppRole = (typeof APP_ROLES)[number];
 
 export interface OidcSettings {
-  /** e.g. https://sso.example.org/realms/africodeshield (no trailing slash) */
+  /** e.g. https://sso.example.org/realms/saytu (no trailing slash) */
   issuer: string;
   clientId: string;
   redirectUri: string;

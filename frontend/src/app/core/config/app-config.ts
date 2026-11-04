@@ -7,7 +7,7 @@ import { firstValueFrom } from 'rxjs';
  * variables at container start. One image works for every installation: no rebuild per site.
  */
 export interface AppConfig {
-  /** OIDC issuer, e.g. https://sso.example.org/realms/africodeshield */
+  /** OIDC issuer, e.g. https://sso.example.org/realms/saytu */
   oidcIssuer: string;
   /** Keycloak public client of the SPA */
   oidcClientId: string;
@@ -16,8 +16,8 @@ export interface AppConfig {
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
-  oidcIssuer: 'http://localhost:8180/realms/africodeshield',
-  oidcClientId: 'africodeshield-web',
+  oidcIssuer: 'http://localhost:8180/realms/saytu',
+  oidcClientId: 'saytu-web',
   apiBaseUrl: '/api/v1',
 };
 
@@ -34,7 +34,7 @@ export class AppConfigService {
       const loaded = await firstValueFrom(this.http.get<Partial<AppConfig>>(url));
       this.current.set(AppConfigService.merge(loaded));
     } catch {
-      console.warn(`AfriCodeShield: ${url} unavailable, using default configuration`);
+      console.warn(`SAYTU: ${url} unavailable, using default configuration`);
     }
   }
 

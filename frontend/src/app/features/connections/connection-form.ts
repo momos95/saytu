@@ -11,7 +11,7 @@ import { ConnectionTest, GitConnection, GitConnectionRequest, PROVIDERS, Provide
  * token. "Tester" checks the settings typed in the form before anything is saved.
  */
 @Component({
-  selector: 'acs-connection-form',
+  selector: 'saytu-connection-form',
   imports: [ReactiveFormsModule, ConnectionTestResult],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -75,7 +75,7 @@ import { ConnectionTest, GitConnection, GitConnectionRequest, PROVIDERS, Provide
         <p class="field-error" role="alert">{{ error() }}</p>
       }
       @if (testResult(); as r) {
-        <acs-connection-test-result [result]="r" />
+        <saytu-connection-test-result [result]="r" />
       }
 
       <div class="actions">
@@ -90,16 +90,16 @@ import { ConnectionTest, GitConnection, GitConnectionRequest, PROVIDERS, Provide
     h2 { margin: 0; font-size: 1.15rem; }
     label { display: flex; flex-direction: column; gap: 4px; font-weight: 500; font-size: .9rem; }
     label.inline { flex-direction: row; align-items: center; gap: 8px; font-weight: 400; }
-    input:not([type=checkbox]), select { font: inherit; padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--acs-border);
-                     background: var(--acs-bg); color: var(--acs-text); }
-    .help { margin: -4px 0 0; font-size: .85rem; color: var(--acs-muted); }
-    .field-error { color: var(--acs-critical); font-size: .85rem; font-weight: 400; }
-    details summary { cursor: pointer; font-size: .9rem; color: var(--acs-muted); }
+    input:not([type=checkbox]), select { font: inherit; padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+                     background: var(--saytu-bg); color: var(--saytu-text); }
+    .help { margin: -4px 0 0; font-size: .85rem; color: var(--saytu-muted); }
+    .field-error { color: var(--saytu-critical); font-size: .85rem; font-weight: 400; }
+    details summary { cursor: pointer; font-size: .9rem; color: var(--saytu-muted); }
     details label { margin-top: 8px; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
-    button { font: inherit; padding: .5rem .9rem; border-radius: 6px; border: 1px solid var(--acs-border);
-             background: var(--acs-surface); color: var(--acs-text); cursor: pointer; }
-    button.primary { background: var(--acs-accent); border-color: var(--acs-accent); color: #fff; }
+    button { font: inherit; padding: .5rem .9rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+             background: var(--saytu-surface); color: var(--saytu-text); cursor: pointer; }
+    button.primary { background: var(--saytu-accent); border-color: var(--saytu-accent); color: #fff; }
     button:disabled { opacity: .6; cursor: not-allowed; }
   `,
 })

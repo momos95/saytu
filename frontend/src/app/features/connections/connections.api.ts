@@ -46,7 +46,7 @@ export function errorMessage(error: unknown): string {
       return detail;
     }
     if (error.status === 0) {
-      return 'Le serveur AfriCodeShield est injoignable.';
+      return 'Le serveur SAYTU est injoignable.';
     }
     if (error.status === 403) {
       return 'Action réservée aux administrateurs.';

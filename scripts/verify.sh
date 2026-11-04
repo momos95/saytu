@@ -15,7 +15,7 @@ for f in scripts/*.sh infra/postgres/init/*.sh frontend/nginx/*.envsh; do
 done
 
 echo "== Keycloak realm"
-python3 -m json.tool infra/keycloak/africodeshield-realm.json >/dev/null && pass "realm JSON" || fail "realm JSON"
+python3 -m json.tool infra/keycloak/saytu-realm.json >/dev/null && pass "realm JSON" || fail "realm JSON"
 
 echo "== Docker Compose"
 if command -v docker >/dev/null; then

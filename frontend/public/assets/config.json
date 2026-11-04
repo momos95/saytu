@@ -1,5 +1,5 @@
 {
-  "oidcIssuer": "http://localhost:8180/realms/africodeshield",
-  "oidcClientId": "africodeshield-web",
+  "oidcIssuer": "http://localhost:8180/realms/saytu",
+  "oidcClientId": "saytu-web",
   "apiBaseUrl": "/api/v1"
 }

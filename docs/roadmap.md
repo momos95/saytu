@@ -11,10 +11,33 @@
 | 7 | Planification cron, historique, comparaison de scans, webhooks, recommandations, Ollama | à faire |
 | 8 | Durcissement, tests de bout en bout, SBOM, guides d'exploitation et de mise à jour hors ligne | à faire |
 
+## Renommage AfriCodeShield → SAYTU (4 novembre 2026)
+
+Tous les identifiants ont changé : packages Java `com.saytu`, modules `saytu-core` / `saytu-git` /
+`saytu-app`, realm Keycloak `saytu`, clients `saytu-web` / `saytu-api`, base et rôle PostgreSQL
+`saytu`, propriétés `saytu.*`, variables `SAYTU_*`, images `saytu/api` et `saytu/web`, préfixe Angular
+`saytu-`. Les données chiffrées sous l'ancien nom ne sont plus lisibles (données associées du
+chiffrement) : une installation existante doit être réinitialisée.
+
+**Réinitialiser une installation de développement sans Docker**
+1. Arrêter l'API et Keycloak.
+2. PostgreSQL : `CREATE ROLE saytu LOGIN PASSWORD '...'; CREATE DATABASE saytu OWNER saytu;`
+   (l'ancienne base `africodeshield` peut être supprimée).
+3. Keycloak : supprimer `data/h2`, copier `infra/keycloak/saytu-realm.json` dans `data/import/`
+   (retirer l'ancien fichier), relancer avec `--import-realm` et les variables `SAYTU_PUBLIC_URL`,
+   `SAYTU_INITIAL_ADMIN_USERNAME`, `SAYTU_INITIAL_ADMIN_PASSWORD`.
+4. API : variables `SAYTU_DB_PASSWORD` et `SAYTU_MASTER_KEY` (au lieu de `ACS_*`), puis
+   `mvn -f backend/pom.xml package` et `java -jar backend/saytu-app/target/saytu.jar`.
+5. Ressaisir les connexions Git.
+
+**Avec Docker Compose** : `docker compose down -v`, renommer les variables `ACS_*` en `SAYTU_*` dans
+`.env` (ou le regénérer avec `scripts/generate-secrets.sh` après l'avoir supprimé), puis
+`docker compose up -d --build`.
+
 ## Phase 3 — détail
 
 ### Livré et vérifié dans l'environnement de développement
-* Découverte pour les cinq plateformes (`acs-git`) — **89 tests exécutés, 89 réussis**, dont 27 nouveaux :
+* Découverte pour les cinq plateformes (`saytu-git`) — **89 tests exécutés, 89 réussis**, dont 27 nouveaux :
   * GitLab : compte personnel, groupes et sous-groupes (`X-Next-Page`), projets, branches ;
   * GitHub / GHES : compte, organisations (`Link`), dépôts propres privés ou publics, branches ;
   * Bitbucket Cloud : `/user/workspaces` puis `/repositories/{workspace}` (les points d'API
@@ -46,7 +69,7 @@
 
 ### Livré et vérifié dans l'environnement de développement
 * `TokenCipher` (AES-256-GCM, données associées, rotation) — 9 tests.
-* Module `acs-git` (JDK seul) — **62 tests exécutés, 62 réussis**, contre un vrai serveur HTTP local :
+* Module `saytu-git` (JDK seul) — **62 tests exécutés, 62 réussis**, contre un vrai serveur HTTP local :
   * test de connexion GitLab (identité, version, scopes via `personal_access_tokens/self`, expiration,
     droits d'écriture superflus), GitHub / GHES (scopes classiques, tokens fine-grained, expiration,
     limite de débit), Bitbucket Cloud (API token Basic e-mail, access token Bearer), Bitbucket Data
@@ -72,7 +95,7 @@
   `read_repository`, expiration ; token stocké chiffré.
 * Correctif issu de ce test : entité `SourceRepositoryEntity` rendue proxyable (HHH000305).
 * Constat : derrière un proxy d'inspection HTTPS, l'autorité du proxy doit être ajoutée
-  (`ACS_GIT_CA_BUNDLE`) ; message d'erreur et guide complétés.
+  (`SAYTU_GIT_CA_BUNDLE`) ; message d'erreur et guide complétés.
 
 ### Limites connues de la phase 2
 * La découverte des organisations, dépôts et branches (phase 3) n'existe pas encore : les méthodes
@@ -83,7 +106,7 @@
 ## Phase 1 — détail
 
 ### Livré et vérifié
-* `acs-core` : modèle de domaine, ports `GitProvider` / `ScannerAdapter` / `RemediationProvider`,
+* `saytu-core` : modèle de domaine, ports `GitProvider` / `ScannerAdapter` / `RemediationProvider`,
   empreinte stable, dédoublonnage multi-scanners, expurgation des secrets, invariants de sécurité
   des commandes — **45 tests unitaires exécutés, 45 réussis** (voir « Vérification »).
 * Schéma Flyway V1 (20 tables) appliqué sur PostgreSQL 16 réel + 18 contrôles de contraintes
@@ -95,7 +118,7 @@
 
 ### Livré, écrit pour compiler, **non exécuté dans l'environnement de développement**
 (Maven Central, npm et Docker Hub y étaient inaccessibles)
-* `acs-app` : configuration Spring Security (resource server JWT, deny-by-default, CORS, en-têtes),
+* `saytu-app` : configuration Spring Security (resource server JWT, deny-by-default, CORS, en-têtes),
   OpenAPI, entités JPA connexions/namespaces/dépôts/branches/scanners, endpoint
   `GET /api/v1/system/info`, gestion d'erreurs RFC 9457. Les sources passent l'analyse syntaxique
   `javac` ; la compilation complète et les tests (`KeycloakRealmRoleConverterTest`,

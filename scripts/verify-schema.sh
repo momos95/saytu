@@ -6,8 +6,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MIGRATIONS="$ROOT/backend/acs-app/src/main/resources/db/migration"
-CHECKS="$ROOT/backend/acs-app/src/test/resources/db/schema-constraints-test.sql"
+MIGRATIONS="$ROOT/backend/saytu-app/src/main/resources/db/migration"
+CHECKS="$ROOT/backend/saytu-app/src/test/resources/db/schema-constraints-test.sql"
 
 if [[ -z "${PG_BIN:-}" ]]; then
   PG_BIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
@@ -27,10 +27,10 @@ PORT="${PG_PORT:-55432}"
 cleanup() { "${RUN_AS[@]}" "$PG_BIN/pg_ctl" -D "$WORK/data" -m immediate stop >/dev/null 2>&1 || true; rm -rf "$WORK"; }
 trap cleanup EXIT
 
-"${RUN_AS[@]}" "$PG_BIN/initdb" -D "$WORK/data" -U acs --auth=trust -E UTF8 >/dev/null
+"${RUN_AS[@]}" "$PG_BIN/initdb" -D "$WORK/data" -U saytu --auth=trust -E UTF8 >/dev/null
 "${RUN_AS[@]}" "$PG_BIN/pg_ctl" -D "$WORK/data" -o "-p $PORT -k $WORK -c listen_addresses=''" -l "$WORK/pg.log" -w start >/dev/null
 
-PSQL=("${RUN_AS[@]}" "$PG_BIN/psql" -h "$WORK" -p "$PORT" -U acs -d postgres -v ON_ERROR_STOP=1 -q -X)
+PSQL=("${RUN_AS[@]}" "$PG_BIN/psql" -h "$WORK" -p "$PORT" -U saytu -d postgres -v ON_ERROR_STOP=1 -q -X)
 
 echo "== PostgreSQL $("${PSQL[@]}" -tAc 'SHOW server_version')"
 for f in $(ls "$MIGRATIONS"/V*__*.sql | sort -V); do

@@ -15,8 +15,8 @@ output="$(sed \
   -e "s|^POSTGRES_PASSWORD=CHANGE_ME|POSTGRES_PASSWORD=$(rand 32)|" \
   -e "s|^KEYCLOAK_DB_PASSWORD=CHANGE_ME|KEYCLOAK_DB_PASSWORD=$(rand 32)|" \
   -e "s|^KC_BOOTSTRAP_ADMIN_PASSWORD=CHANGE_ME|KC_BOOTSTRAP_ADMIN_PASSWORD=$(policy_password)|" \
-  -e "s|^ACS_INITIAL_ADMIN_PASSWORD=CHANGE_ME|ACS_INITIAL_ADMIN_PASSWORD=$(policy_password)|" \
-  -e "s|^ACS_MASTER_KEY=CHANGE_ME|ACS_MASTER_KEY=$(head -c 32 /dev/urandom | base64 | tr -d '\n')|" \
+  -e "s|^SAYTU_INITIAL_ADMIN_PASSWORD=CHANGE_ME|SAYTU_INITIAL_ADMIN_PASSWORD=$(policy_password)|" \
+  -e "s|^SAYTU_MASTER_KEY=CHANGE_ME|SAYTU_MASTER_KEY=$(head -c 32 /dev/urandom | base64 | tr -d '\n')|" \
   "$TEMPLATE")"
 
 if grep -q '=CHANGE_ME' <<<"$output"; then
@@ -34,4 +34,4 @@ if [[ -e "$TARGET" ]]; then
 fi
 umask 077
 printf '%s\n' "$output" > "$TARGET"
-echo "Created $TARGET (mode 600). Initial admin password: grep ACS_INITIAL_ADMIN_PASSWORD .env"
+echo "Created $TARGET (mode 600). Initial admin password: grep SAYTU_INITIAL_ADMIN_PASSWORD .env"

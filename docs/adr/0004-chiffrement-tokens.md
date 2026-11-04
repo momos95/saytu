@@ -7,7 +7,7 @@
   tag 128 bits ; format stocké : `version(1) || iv(12) || ciphertext || tag(16)`.
 * Données associées (AAD) = identifiant de la connexion : un chiffré copié vers une autre ligne
   ne se déchiffre pas.
-* Clé maître `ACS_MASTER_KEY` (32 octets base64) fournie par l'environnement, jamais en base ;
+* Clé maître `SAYTU_MASTER_KEY` (32 octets base64) fournie par l'environnement, jamais en base ;
   colonne `token_key_id` pour la rotation (ré-chiffrement progressif).
 * Le token déchiffré vit dans une `SensitiveValue` le temps d'un appel API ou d'un clone, puis est
   effacé ; il n'apparaît dans aucun DTO, log ou message d'erreur. L'API ne renvoie jamais le token,

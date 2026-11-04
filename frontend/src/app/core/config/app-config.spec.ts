@@ -21,12 +21,12 @@ describe('AppConfigService', () => {
   it('loads the runtime configuration and strips trailing slashes', async () => {
     const done = service.load();
     http.expectOne('/assets/config.json').flush({
-      oidcIssuer: 'https://sso.example.org/realms/africodeshield/',
+      oidcIssuer: 'https://sso.example.org/realms/saytu/',
       oidcClientId: 'web',
       apiBaseUrl: '/api/v1',
     });
     await done;
-    expect(service.config().oidcIssuer).toBe('https://sso.example.org/realms/africodeshield');
+    expect(service.config().oidcIssuer).toBe('https://sso.example.org/realms/saytu');
     expect(service.config().oidcClientId).toBe('web');
   });
 
@@ -38,7 +38,7 @@ describe('AppConfigService', () => {
   });
 
   it('ignores empty values and unsubstituted placeholders', () => {
-    const merged = AppConfigService.merge({ oidcIssuer: '${ACS_OIDC_ISSUER}', oidcClientId: '  ' });
+    const merged = AppConfigService.merge({ oidcIssuer: '${SAYTU_OIDC_ISSUER}', oidcClientId: '  ' });
     expect(merged).toEqual(DEFAULT_CONFIG);
   });
 });

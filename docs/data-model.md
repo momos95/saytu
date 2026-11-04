@@ -1,6 +1,6 @@
 # Modèle de données
 
-Source de vérité : `backend/acs-app/src/main/resources/db/migration/V1__initial_schema.sql`
+Source de vérité : `backend/saytu-app/src/main/resources/db/migration/V1__initial_schema.sql`
 (vérifié sur PostgreSQL 16 par `scripts/verify-schema.sh`, 20 tables).
 
 Conventions : clés UUID ; énumérations en `VARCHAR` + `CHECK` (portables, compatibles avec

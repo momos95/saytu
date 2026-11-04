@@ -1,7 +1,7 @@
 # Connexions Git — guide administrateur
 
 Page **Connexions Git** (rôle ADMIN pour créer, modifier, tester et supprimer ; lecture pour tous).
-Utilisez toujours un token **en lecture seule** dédié à AfriCodeShield.
+Utilisez toujours un token **en lecture seule** dédié à SAYTU.
 
 | Plateforme | URL | Identifiant | Token et droits |
 |---|---|---|---|
@@ -31,7 +31,7 @@ basses des plateformes.
 | Permissions insuffisantes | scope ou permission manquant (le message liste les scopes manquants) | recréer le token avec les bons droits |
 | Limite de requêtes atteinte | quota de l'API épuisé | réessayer après le délai indiqué |
 | Introuvable | mauvaise URL | vérifier l'URL ou l'URL d'API (options avancées) |
-| Serveur injoignable | DNS, pare-feu, proxy, délai dépassé | vérifier le réseau ; proxy via `ACS_JAVA_PROXY_OPTS` |
+| Serveur injoignable | DNS, pare-feu, proxy, délai dépassé | vérifier le réseau ; proxy via `SAYTU_JAVA_PROXY_OPTS` |
 | Certificat TLS non reconnu | autorité interne, ou proxy / antivirus qui inspecte le HTTPS | voir « Proxy d'inspection HTTPS » ci-dessous |
 | Réponse inattendue | redirection, page HTML, mauvais produit | vérifier le type de plateforme et l'URL |
 | Destination interdite | politique de sécurité (adresse de métadonnées, HTTP non chiffré, chemin hors `/srv/git`) | voir [security.md](security.md) |
@@ -81,8 +81,8 @@ est le nom de l'entreprise, d'un proxy ou d'un antivirus, c'est une interception
 **Correction** : exporter ce certificat d'autorité au format Base-64 (PEM, `.cer` ou `.pem`), puis :
 
 * Docker Compose : le déposer dans `./data/ca/` et renseigner
-  `ACS_GIT_CA_BUNDLE_IN_CONTAINER=/etc/africodeshield/ca/<fichier>` dans `.env` ;
-* exécution directe : `ACS_GIT_CA_BUNDLE=<chemin du fichier>` avant `java -jar` ;
+  `SAYTU_GIT_CA_BUNDLE_IN_CONTAINER=/etc/saytu/ca/<fichier>` dans `.env` ;
+* exécution directe : `SAYTU_GIT_CA_BUNDLE=<chemin du fichier>` avant `java -jar` ;
 * poste Windows sans Docker, alternative rapide : faire utiliser à Java le magasin de Windows :
   `java -Djavax.net.ssl.trustStore=NONE -Djavax.net.ssl.trustStoreType=Windows-ROOT -jar ...`
 

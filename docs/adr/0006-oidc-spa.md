@@ -14,7 +14,7 @@ connue au démarrage du conteneur (configuration runtime), pas à la compilation
 
 ## Décision
 * Flux *authorization code* + PKCE S256, `state` et `nonce` aléatoires (32 octets), client public
-  `africodeshield-web`.
+  `saytu-web`.
 * Jetons **en mémoire uniquement**. Seuls `state`, `nonce` et le vérificateur PKCE transitent par
   `sessionStorage` le temps de la redirection (10 min max). Un rechargement de page repasse par
   Keycloak, qui répond sans formulaire tant que sa session SSO est active.

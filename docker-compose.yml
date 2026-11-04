@@ -1,12 +1,12 @@
-# AfriCodeShield - on-premise stack.
+# SAYTU - on-premise stack.
 #   scripts/generate-secrets.sh && docker compose up -d --build
-#   UI: ${ACS_PUBLIC_URL} (default http://localhost:8080)   SSO: ${ACS_KEYCLOAK_PUBLIC_URL}
+#   UI: ${SAYTU_PUBLIC_URL} (default http://localhost:8080)   SSO: ${SAYTU_KEYCLOAK_PUBLIC_URL}
 # Optional local LLM: docker compose --profile ai up -d
 #
 # Phase 1 services: postgres, keycloak, api, web (+ optional ollama).
 # The scan worker (scanner binaries, sandbox) is added in phase 4.
 
-name: africodeshield
+name: saytu
 
 x-hardening: &hardening
   security_opt:
@@ -23,8 +23,8 @@ services:
     <<: *hardening
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-africodeshield}
-      POSTGRES_USER: ${POSTGRES_USER:-acs}
+      POSTGRES_DB: ${POSTGRES_DB:-saytu}
+      POSTGRES_USER: ${POSTGRES_USER:-saytu}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
@@ -50,7 +50,7 @@ services:
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
-      KC_HOSTNAME: ${ACS_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}
+      KC_HOSTNAME: ${SAYTU_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}
       # Lets the API reach Keycloak at http://keycloak:8080 while tokens keep the public issuer
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
       KC_HTTP_ENABLED: "true"
@@ -60,13 +60,13 @@ services:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-kcadmin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?set KC_BOOTSTRAP_ADMIN_PASSWORD in .env}
       # placeholders substituted in the realm import
-      ACS_PUBLIC_URL: ${ACS_PUBLIC_URL:-http://localhost:8080}
-      ACS_INITIAL_ADMIN_USERNAME: ${ACS_INITIAL_ADMIN_USERNAME:-admin}
-      ACS_INITIAL_ADMIN_PASSWORD: ${ACS_INITIAL_ADMIN_PASSWORD:?set ACS_INITIAL_ADMIN_PASSWORD in .env}
+      SAYTU_PUBLIC_URL: ${SAYTU_PUBLIC_URL:-http://localhost:8080}
+      SAYTU_INITIAL_ADMIN_USERNAME: ${SAYTU_INITIAL_ADMIN_USERNAME:-admin}
+      SAYTU_INITIAL_ADMIN_PASSWORD: ${SAYTU_INITIAL_ADMIN_PASSWORD:?set SAYTU_INITIAL_ADMIN_PASSWORD in .env}
     volumes:
-      - ./infra/keycloak/africodeshield-realm.json:/opt/keycloak/data/import/africodeshield-realm.json:ro
+      - ./infra/keycloak/saytu-realm.json:/opt/keycloak/data/import/saytu-realm.json:ro
     ports:
-      - "${ACS_KEYCLOAK_PORT:-8180}:8080"
+      - "${SAYTU_KEYCLOAK_PORT:-8180}:8080"
     networks: [data, edge]
     depends_on:
       postgres:
@@ -86,31 +86,31 @@ services:
     <<: *hardening
     build:
       context: ./backend
-    image: africodeshield/api:${ACS_VERSION:-dev}
+    image: saytu/api:${SAYTU_VERSION:-dev}
     environment:
-      ACS_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-africodeshield}
-      ACS_DB_USER: ${POSTGRES_USER:-acs}
-      ACS_DB_PASSWORD: ${POSTGRES_PASSWORD}
-      ACS_OIDC_ISSUER: ${ACS_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}/realms/africodeshield
-      ACS_OIDC_JWK_SET_URI: http://keycloak:8080/realms/africodeshield/protocol/openid-connect/certs
-      ACS_OIDC_AUDIENCE: africodeshield-api
-      ACS_OIDC_WEB_CLIENT_ID: africodeshield-web
-      ACS_CORS_ALLOWED_ORIGINS: ${ACS_PUBLIC_URL:-http://localhost:8080}
-      ACS_EXPOSE_API_DOCS: ${ACS_EXPOSE_API_DOCS:-false}
-      ACS_MASTER_KEY: ${ACS_MASTER_KEY:?set ACS_MASTER_KEY in .env}
-      ACS_PREVIOUS_MASTER_KEYS: ${ACS_PREVIOUS_MASTER_KEYS:-}
-      ACS_GIT_ALLOW_PLAIN_HTTP: ${ACS_GIT_ALLOW_PLAIN_HTTP:-false}
-      ACS_GIT_CA_BUNDLE: ${ACS_GIT_CA_BUNDLE_IN_CONTAINER:-}
-      ACS_LOCAL_REPOS_ROOT: /srv/git
+      SAYTU_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-saytu}
+      SAYTU_DB_USER: ${POSTGRES_USER:-saytu}
+      SAYTU_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      SAYTU_OIDC_ISSUER: ${SAYTU_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}/realms/saytu
+      SAYTU_OIDC_JWK_SET_URI: http://keycloak:8080/realms/saytu/protocol/openid-connect/certs
+      SAYTU_OIDC_AUDIENCE: saytu-api
+      SAYTU_OIDC_WEB_CLIENT_ID: saytu-web
+      SAYTU_CORS_ALLOWED_ORIGINS: ${SAYTU_PUBLIC_URL:-http://localhost:8080}
+      SAYTU_EXPOSE_API_DOCS: ${SAYTU_EXPOSE_API_DOCS:-false}
+      SAYTU_MASTER_KEY: ${SAYTU_MASTER_KEY:?set SAYTU_MASTER_KEY in .env}
+      SAYTU_PREVIOUS_MASTER_KEYS: ${SAYTU_PREVIOUS_MASTER_KEYS:-}
+      SAYTU_GIT_ALLOW_PLAIN_HTTP: ${SAYTU_GIT_ALLOW_PLAIN_HTTP:-false}
+      SAYTU_GIT_CA_BUNDLE: ${SAYTU_GIT_CA_BUNDLE_IN_CONTAINER:-}
+      SAYTU_LOCAL_REPOS_ROOT: /srv/git
       # Outbound proxy towards github.com / gitlab.com, if the site requires one
       JAVA_TOOL_OPTIONS: >-
         -XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError
-        ${ACS_JAVA_PROXY_OPTS:-}
+        ${SAYTU_JAVA_PROXY_OPTS:-}
     volumes:
       # Local repositories (LOCAL connections), mounted read-only
-      - ${ACS_LOCAL_REPOS_HOST_DIR:-./data/local-repos}:/srv/git:ro
-      # Internal CA certificates (PEM), see ACS_GIT_CA_BUNDLE
-      - ${ACS_CA_DIR:-./data/ca}:/etc/africodeshield/ca:ro
+      - ${SAYTU_LOCAL_REPOS_HOST_DIR:-./data/local-repos}:/srv/git:ro
+      # Internal CA certificates (PEM), see SAYTU_GIT_CA_BUNDLE
+      - ${SAYTU_CA_DIR:-./data/ca}:/etc/saytu/ca:ro
     read_only: true
     tmpfs:
       - /tmp:size=256m,mode=1777
@@ -130,13 +130,13 @@ services:
     <<: *hardening
     build:
       context: ./frontend
-    image: africodeshield/web:${ACS_VERSION:-dev}
+    image: saytu/web:${SAYTU_VERSION:-dev}
     environment:
-      ACS_OIDC_ISSUER: ${ACS_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}/realms/africodeshield
-      ACS_OIDC_CLIENT_ID: africodeshield-web
-      ACS_PUBLIC_URL: ${ACS_PUBLIC_URL:-http://localhost:8080}
+      SAYTU_OIDC_ISSUER: ${SAYTU_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}/realms/saytu
+      SAYTU_OIDC_CLIENT_ID: saytu-web
+      SAYTU_PUBLIC_URL: ${SAYTU_PUBLIC_URL:-http://localhost:8080}
     ports:
-      - "${ACS_HTTP_PORT:-8080}:8080"
+      - "${SAYTU_HTTP_PORT:-8080}:8080"
     cap_drop: [ALL]
     networks: [edge]
     depends_on:

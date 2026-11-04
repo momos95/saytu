@@ -14,7 +14,7 @@ import { KIND_LABELS, Namespace } from './sources.model';
  * Selecting a namespace with "tous les dépôts" includes its future repositories as well.
  */
 @Component({
-  selector: 'acs-repositories-page',
+  selector: 'saytu-repositories-page',
   imports: [DatePipe, NamespaceRepositories],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -102,7 +102,7 @@ import { KIND_LABELS, Namespace } from './sources.model';
                   {{ n.repositoriesSyncStatus === 'OK' ? '' : '— ' + (n.repositoriesSyncMessage ?? n.repositoriesSyncStatus) }}</p>
               }
               @if (expanded().has(n.id)) {
-                <acs-namespace-repositories [namespace]="n" [canEdit]="isAdmin()" (changed)="reloadNamespaces()" />
+                <saytu-namespace-repositories [namespace]="n" [canEdit]="isAdmin()" (changed)="reloadNamespaces()" />
               }
             </li>
           }
@@ -120,8 +120,8 @@ import { KIND_LABELS, Namespace } from './sources.model';
     h1 { margin: 0; font-size: 1.5rem; }
     .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
     .controls label { display: flex; flex-direction: column; gap: 4px; font-size: .9rem; font-weight: 500; flex: 1; min-width: 200px; }
-    select, input:not([type=checkbox]) { font: inherit; padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--acs-border);
-                                         background: var(--acs-bg); color: var(--acs-text); }
+    select, input:not([type=checkbox]) { font: inherit; padding: .5rem .6rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+                                         background: var(--saytu-bg); color: var(--saytu-text); }
     .add { display: flex; gap: 8px; margin: 12px 0; }
     .add input { flex: 1; min-width: 0; }
     .filter { width: 100%; margin: 4px 0 12px; }
@@ -131,16 +131,16 @@ import { KIND_LABELS, Namespace } from './sources.model';
     .actions { margin-top: 8px; justify-content: flex-start; }
     .spacer { flex: 1; }
     .title { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; overflow-wrap: anywhere; }
-    .badge { font-size: .72rem; padding: .1rem .5rem; border-radius: 999px; background: var(--acs-hover); }
-    .badge.warn { color: var(--acs-medium); }
+    .badge { font-size: .72rem; padding: .1rem .5rem; border-radius: 999px; background: var(--saytu-hover); }
+    .badge.warn { color: var(--saytu-medium); }
     .counts { font-size: .85rem; }
     .sync { font-size: .8rem; margin: 6px 0 0; }
     label.inline { display: flex; gap: 6px; align-items: center; font-size: .9rem; }
     .message { margin: 12px 0; }
-    .error { color: var(--acs-critical); }
-    button { font: inherit; font-size: .9rem; padding: .45rem .85rem; border-radius: 6px; border: 1px solid var(--acs-border);
-             background: var(--acs-surface); color: var(--acs-text); cursor: pointer; }
-    button.primary { background: var(--acs-accent); border-color: var(--acs-accent); color: #fff; }
+    .error { color: var(--saytu-critical); }
+    button { font: inherit; font-size: .9rem; padding: .45rem .85rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+             background: var(--saytu-surface); color: var(--saytu-text); cursor: pointer; }
+    button.primary { background: var(--saytu-accent); border-color: var(--saytu-accent); color: #fff; }
     button:disabled { opacity: .6; }
     @media (max-width: 640px) { .tree li { margin-left: 0 !important; } }
   `,

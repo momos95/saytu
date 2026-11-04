@@ -18,12 +18,12 @@ const ERROR_MESSAGES: Record<string, string> = {
  * protection, password policy); this page explains errors and starts the redirect.
  */
 @Component({
-  selector: 'acs-login-page',
+  selector: 'saytu-login-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <main class="login">
       <section class="card">
-        <div class="brand"><span class="logo" aria-hidden="true">◆</span> AfriCodeShield</div>
+        <div class="brand"><span class="logo" aria-hidden="true">◆</span> SAYTU</div>
         <p class="muted">Audit de sécurité et de qualité du code, hébergé chez vous.</p>
 
         @if (loggedOut()) {
@@ -44,11 +44,11 @@ const ERROR_MESSAGES: Record<string, string> = {
     .login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
     .card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
     .brand { font-size: 1.4rem; font-weight: 700; display: flex; gap: .5rem; align-items: center; }
-    .logo { color: var(--acs-accent); }
-    .primary { padding: .7rem 1rem; border: 0; border-radius: 8px; background: var(--acs-accent); color: #fff;
+    .logo { color: var(--saytu-accent); }
+    .primary { padding: .7rem 1rem; border: 0; border-radius: 8px; background: var(--saytu-accent); color: #fff;
                font-weight: 600; font-size: 1rem; cursor: pointer; }
     .primary:disabled { opacity: .7; cursor: progress; }
-    .error { color: var(--acs-critical); margin: 0; }
+    .error { color: var(--saytu-critical); margin: 0; }
     .notice { margin: 0; }
     .hint { font-size: .85rem; margin: 0; }
   `,

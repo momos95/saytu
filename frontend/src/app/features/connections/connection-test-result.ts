@@ -4,7 +4,7 @@ import { ConnectionTest, statusLabel } from './connections.model';
 
 /** Outcome of a connection test: status, identity, scopes, warnings. */
 @Component({
-  selector: 'acs-connection-test-result',
+  selector: 'saytu-connection-test-result',
   imports: [DatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -38,15 +38,15 @@ import { ConnectionTest, statusLabel } from './connections.model';
     </div>
   `,
   styles: `
-    .result { border-radius: 8px; padding: 12px 14px; border: 1px solid var(--acs-border); }
-    .ok { border-color: var(--acs-accent); background: var(--acs-accent-soft); }
-    .ko { border-color: var(--acs-critical); }
-    .ko strong { color: var(--acs-critical); }
+    .result { border-radius: 8px; padding: 12px 14px; border: 1px solid var(--saytu-border); }
+    .ok { border-color: var(--saytu-accent); background: var(--saytu-accent-soft); }
+    .ko { border-color: var(--saytu-critical); }
+    .ko strong { color: var(--saytu-critical); }
     .message { margin: .4rem 0 0; }
     dl { display: grid; grid-template-columns: max-content 1fr; gap: .2rem .8rem; margin: .5rem 0 0; font-size: .9rem; }
-    dt { color: var(--acs-muted); }
+    dt { color: var(--saytu-muted); }
     dd { margin: 0; overflow-wrap: anywhere; }
-    .warnings { margin: .5rem 0 0; padding-left: 1.1rem; color: var(--acs-medium); font-size: .9rem; }
+    .warnings { margin: .5rem 0 0; padding-left: 1.1rem; color: var(--saytu-medium); font-size: .9rem; }
   `,
 })
 export class ConnectionTestResult {

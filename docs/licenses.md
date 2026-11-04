@@ -4,7 +4,7 @@ Objectif : aucun composant commercial ni abonnement **obligatoire**. Ce registre
 chaque phase ; la colonne « Vérification » indique ce qui a été confirmé sur une source primaire et
 ce qui reste à contrôler avant intégration.
 
-Licence proposée pour AfriCodeShield : **Apache-2.0** (modifiable par le porteur du projet ; elle
+Licence proposée pour SAYTU : **Apache-2.0** (modifiable par le porteur du projet ; elle
 est compatible avec l'usage de tous les composants ci-dessous tant que les outils LGPL/GPL sont
 utilisés comme programmes séparés ou bibliothèques liées dynamiquement, sans modification).
 
@@ -29,7 +29,7 @@ utilisés comme programmes séparés ou bibliothèques liées dynamiquement, san
 | nginx (image `nginx-unprivileged`) | serveur web | BSD-2-Clause | connue |
 | Ollama (optionnel) | LLM local | MIT | connue |
 
-Phase 2 : **aucune dépendance ajoutée**. Les connecteurs Git (`acs-git`) n'utilisent que le JDK et
+Phase 2 : **aucune dépendance ajoutée**. Les connecteurs Git (`saytu-git`) n'utilisent que le JDK et
 l'authentification de l'interface n'utilise aucune bibliothèque OIDC (ADR-0005, ADR-0006). La locale
 française d'Angular (`@angular/common/locales/fr`) fait partie d'Angular (MIT).
 
@@ -37,7 +37,7 @@ française d'Angular (`@angular/common/locales/fr`) fait partie d'Angular (MIT).
 
 | Outil | Licence du moteur | Données / règles embarquées | Point d'attention |
 |---|---|---|---|
-| **Opengrep** | LGPL-2.1 (fork de Semgrep CE) | **Aucun jeu de règles fourni par le projet.** Les règles du registre Semgrep sont sous *Semgrep Rules License v1.0*, qui **n'est pas open source** et interdit l'usage dans un produit concurrent ou un SaaS. | **Bloquant phase 4** : ne pas embarquer `semgrep-rules`. Candidat : `opengrep/opengrep-rules` (fork de semgrep-rules du 13/12/2024) — vérifier son fichier LICENSE et l'en-tête des règles avant intégration ; à défaut, maintenir un jeu de règles AfriCodeShield sous Apache-2.0. |
+| **Opengrep** | LGPL-2.1 (fork de Semgrep CE) | **Aucun jeu de règles fourni par le projet.** Les règles du registre Semgrep sont sous *Semgrep Rules License v1.0*, qui **n'est pas open source** et interdit l'usage dans un produit concurrent ou un SaaS. | **Bloquant phase 4** : ne pas embarquer `semgrep-rules`. Candidat : `opengrep/opengrep-rules` (fork de semgrep-rules du 13/12/2024) — vérifier son fichier LICENSE et l'en-tête des règles avant intégration ; à défaut, maintenir un jeu de règles SAYTU sous Apache-2.0. |
 | **Trivy** | Apache-2.0 | Trivy DB / Java DB agrègent des avis de sécurité de sources multiples (NVD, GitHub Advisory Database, avis des distributions…) chacune avec ses conditions. | Documenter les sources et leurs conditions ; la base n'est pas redistribuée dans l'image, elle est importée par l'exploitant. |
 | **Gitleaks** | MIT | règles par défaut incluses dans le binaire (MIT) | — |
 | **PMD** | licence de type BSD | règles intégrées (même licence) | — |

@@ -11,11 +11,11 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.africodeshield</groupId>
-    <artifactId>africodeshield-backend</artifactId>
+    <groupId>com.saytu</groupId>
+    <artifactId>saytu-backend</artifactId>
     <version>0.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>AfriCodeShield backend</name>
+    <name>SAYTU backend</name>
     <description>On-premise security and code-quality audit platform</description>
 
     <licenses>
@@ -26,9 +26,9 @@
     </licenses>
 
     <modules>
-        <module>acs-core</module>
-        <module>acs-git</module>
-        <module>acs-app</module>
+        <module>saytu-core</module>
+        <module>saytu-git</module>
+        <module>saytu-app</module>
     </modules>
 
     <properties>
@@ -41,13 +41,13 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.africodeshield</groupId>
-                <artifactId>acs-core</artifactId>
+                <groupId>com.saytu</groupId>
+                <artifactId>saytu-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.africodeshield</groupId>
-                <artifactId>acs-git</artifactId>
+                <groupId>com.saytu</groupId>
+                <artifactId>saytu-git</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

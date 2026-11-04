@@ -29,7 +29,7 @@ export const OIDC_FETCH = new InjectionToken<FetchFn>('OIDC_FETCH', {
 });
 
 export const CALLBACK_PATH = '/auth/callback';
-const PENDING_KEY = 'acs.oidc.pending';
+const PENDING_KEY = 'saytu.oidc.pending';
 
 /**
  * Session of the signed-in user. Tokens are kept in memory only: a page reload goes back through

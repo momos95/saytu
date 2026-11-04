@@ -1,4 +1,4 @@
-# Rendered at container start by the nginx image (envsubst on ${ACS_*} variables only).
+# Rendered at container start by the nginx image (envsubst on ${SAYTU_*} variables only).
 server {
     listen 8080;
     server_name _;
@@ -10,7 +10,7 @@ server {
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "no-referrer" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ${ACS_KEYCLOAK_ORIGIN}; frame-src ${ACS_KEYCLOAK_ORIGIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self' ${ACS_KEYCLOAK_ORIGIN}; object-src 'none'" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ${SAYTU_KEYCLOAK_ORIGIN}; frame-src ${SAYTU_KEYCLOAK_ORIGIN}; frame-ancestors 'none'; base-uri 'self'; form-action 'self' ${SAYTU_KEYCLOAK_ORIGIN}; object-src 'none'" always;
 
     location = /healthz {
         access_log off;
@@ -22,7 +22,7 @@ server {
     location = /assets/config.json {
         default_type application/json;
         add_header Cache-Control "no-store" always;
-        return 200 '{"oidcIssuer":"${ACS_OIDC_ISSUER}","oidcClientId":"${ACS_OIDC_CLIENT_ID}","apiBaseUrl":"/api/v1"}';
+        return 200 '{"oidcIssuer":"${SAYTU_OIDC_ISSUER}","oidcClientId":"${SAYTU_OIDC_CLIENT_ID}","apiBaseUrl":"/api/v1"}';
     }
 
     # REST API, same origin: no CORS needed in production

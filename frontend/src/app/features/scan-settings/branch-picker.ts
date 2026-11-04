@@ -6,7 +6,7 @@ import { RemoteBranch, Repository } from '../repositories/sources.model';
 
 /** Custom branch list of one repository: pick from the platform's branches or type names. */
 @Component({
-  selector: 'acs-branch-picker',
+  selector: 'saytu-branch-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="picker">
@@ -50,20 +50,20 @@ import { RemoteBranch, Repository } from '../repositories/sources.model';
     </div>
   `,
   styles: `
-    .picker { border: 1px solid var(--acs-border); border-radius: 8px; padding: 12px; margin-top: 8px; background: var(--acs-bg); }
+    .picker { border: 1px solid var(--saytu-border); border-radius: 8px; padding: 12px; margin-top: 8px; background: var(--saytu-bg); }
     .remote { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow: auto; }
     .remote li { padding: 3px 0; }
     label { display: flex; gap: 6px; align-items: center; font-size: .9rem; overflow-wrap: anywhere; }
     .typed { flex-direction: column; align-items: stretch; margin-top: 10px; }
-    input:not([type=checkbox]) { font: inherit; padding: .45rem .6rem; border-radius: 6px; border: 1px solid var(--acs-border);
-                                 background: var(--acs-surface); color: var(--acs-text); }
-    .tag { font-size: .7rem; padding: 0 .4rem; border-radius: 999px; background: var(--acs-hover); }
+    input:not([type=checkbox]) { font: inherit; padding: .45rem .6rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+                                 background: var(--saytu-surface); color: var(--saytu-text); }
+    .tag { font-size: .7rem; padding: 0 .4rem; border-radius: 999px; background: var(--saytu-hover); }
     .actions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; flex-wrap: wrap; }
-    .error { color: var(--acs-critical); font-size: .85rem; margin: 4px 0 0; }
-    .warn { color: var(--acs-medium); font-size: .85rem; }
-    button { font: inherit; font-size: .9rem; padding: .4rem .8rem; border-radius: 6px; border: 1px solid var(--acs-border);
-             background: var(--acs-surface); color: var(--acs-text); cursor: pointer; }
-    button.primary { background: var(--acs-accent); border-color: var(--acs-accent); color: #fff; }
+    .error { color: var(--saytu-critical); font-size: .85rem; margin: 4px 0 0; }
+    .warn { color: var(--saytu-medium); font-size: .85rem; }
+    button { font: inherit; font-size: .9rem; padding: .4rem .8rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+             background: var(--saytu-surface); color: var(--saytu-text); cursor: pointer; }
+    button.primary { background: var(--saytu-accent); border-color: var(--saytu-accent); color: #fff; }
     button:disabled { opacity: .6; }
   `,
 })

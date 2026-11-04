@@ -1,6 +1,6 @@
 #!/bin/sh
 # Runs once, on first start of an empty PostgreSQL volume (docker-entrypoint-initdb.d).
-# Creates a dedicated database and role for Keycloak so that the application role (acs)
+# Creates a dedicated database and role for Keycloak so that the application role (saytu)
 # has no access to identity data and vice versa.
 set -eu
 

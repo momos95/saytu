@@ -15,7 +15,7 @@ import { BranchPicker } from './branch-picker';
 
 /** Page 5: which scanners run, with which limits, and which branches of the selected repositories. */
 @Component({
-  selector: 'acs-scan-settings-page',
+  selector: 'saytu-scan-settings-page',
   imports: [BranchPicker],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -103,7 +103,7 @@ import { BranchPicker } from './branch-picker';
                 }
               </div>
               @if (editing() === r.id) {
-                <acs-branch-picker [repository]="r" (saved)="onBranchesSaved()" (cancelled)="editing.set(null)" />
+                <saytu-branch-picker [repository]="r" (saved)="onBranchesSaved()" (cancelled)="editing.set(null)" />
               }
             </li>
           }
@@ -131,19 +131,19 @@ import { BranchPicker } from './branch-picker';
     .limits { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
     .limits label { display: flex; flex-direction: column; font-size: .8rem; gap: 2px; }
     .limits input { width: 110px; }
-    input:not([type=checkbox]), select { font: inherit; padding: .4rem .55rem; border-radius: 6px; border: 1px solid var(--acs-border);
-                                         background: var(--acs-bg); color: var(--acs-text); }
+    input:not([type=checkbox]), select { font: inherit; padding: .4rem .55rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+                                         background: var(--saytu-bg); color: var(--saytu-text); }
     label.inline { display: flex; gap: 8px; align-items: center; min-width: 0; }
     .name { overflow-wrap: anywhere; }
-    .badge { font-size: .72rem; padding: .1rem .5rem; border-radius: 999px; background: var(--acs-hover); }
+    .badge { font-size: .72rem; padding: .1rem .5rem; border-radius: 999px; background: var(--saytu-hover); }
     .note { font-size: .78rem; margin: 6px 0 0; }
     .conn, .branches { font-size: .85rem; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
     .toolbar input { flex: 1; min-width: 180px; }
     .pager { display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 10px; }
-    .error { color: var(--acs-critical); }
-    button { font: inherit; font-size: .9rem; padding: .4rem .8rem; border-radius: 6px; border: 1px solid var(--acs-border);
-             background: var(--acs-surface); color: var(--acs-text); cursor: pointer; }
+    .error { color: var(--saytu-critical); }
+    button { font: inherit; font-size: .9rem; padding: .4rem .8rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+             background: var(--saytu-surface); color: var(--saytu-text); cursor: pointer; }
     button:disabled { opacity: .6; }
   `,
 })

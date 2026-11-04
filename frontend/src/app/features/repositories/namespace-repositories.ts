@@ -5,7 +5,7 @@ import { Namespace, PageView, Repository } from './sources.model';
 
 /** Paginated, searchable repositories of one namespace, with selection checkboxes (ADMIN). */
 @Component({
-  selector: 'acs-namespace-repositories',
+  selector: 'saytu-namespace-repositories',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="toolbar">
@@ -58,21 +58,21 @@ import { Namespace, PageView, Repository } from './sources.model';
     :host { display: block; margin-top: 10px; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
     input[type=search] { flex: 1; min-width: 180px; font: inherit; padding: .4rem .6rem; border-radius: 6px;
-                         border: 1px solid var(--acs-border); background: var(--acs-bg); color: var(--acs-text); }
+                         border: 1px solid var(--saytu-border); background: var(--saytu-bg); color: var(--saytu-text); }
     .repos { list-style: none; margin: 0; padding: 0; }
     .repos li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; padding: 6px 0;
-                border-top: 1px solid var(--acs-border); }
+                border-top: 1px solid var(--saytu-border); }
     label { display: flex; gap: 8px; align-items: center; min-width: 0; }
     .name { overflow-wrap: anywhere; }
     .tags { display: flex; gap: 4px; flex-wrap: wrap; }
-    .tag { font-size: .72rem; padding: .05rem .45rem; border-radius: 999px; background: var(--acs-hover); }
-    .tag.ok { background: var(--acs-accent-soft); color: var(--acs-accent); }
-    .tag.warn { color: var(--acs-medium); }
+    .tag { font-size: .72rem; padding: .05rem .45rem; border-radius: 999px; background: var(--saytu-hover); }
+    .tag.ok { background: var(--saytu-accent-soft); color: var(--saytu-accent); }
+    .tag.warn { color: var(--saytu-medium); }
     .pager { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 8px; font-size: .85rem; }
     .note { font-size: .85rem; margin: 0 0 6px; }
-    .error { color: var(--acs-critical); }
-    button { font: inherit; font-size: .85rem; padding: .35rem .7rem; border-radius: 6px; border: 1px solid var(--acs-border);
-             background: var(--acs-surface); color: var(--acs-text); cursor: pointer; }
+    .error { color: var(--saytu-critical); }
+    button { font: inherit; font-size: .85rem; padding: .35rem .7rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+             background: var(--saytu-surface); color: var(--saytu-text); cursor: pointer; }
     button:disabled { opacity: .6; }
   `,
 })

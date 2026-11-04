@@ -1,4 +1,4 @@
-# ADR-0005 — Connecteurs Git dans un module sans dépendance (`acs-git`)
+# ADR-0005 — Connecteurs Git dans un module sans dépendance (`saytu-git`)
 
 **Statut** : accepté (phase 2)
 
@@ -8,7 +8,7 @@ un administrateur. C'est le code le plus exposé de la plateforme : fuite de tok
 hostiles.
 
 ## Décision
-* Module Maven `acs-git`, dépendant uniquement du JDK (`java.net.http`) et d'`acs-core`. Pas de
+* Module Maven `saytu-git`, dépendant uniquement du JDK (`java.net.http`) et d'`saytu-core`. Pas de
   Spring, pas de Jackson, pas de client HTTP tiers.
 * Lecteur JSON minimal et strict (`JsonNode`, RFC 8259, profondeur bornée) : les réponses des forges
   sont lues, jamais sérialisées.
@@ -18,9 +18,9 @@ hostiles.
   * redirections jamais suivies : un token n'est jamais rejoué vers un autre hôte ;
   * corps de réponse plafonné (8 Mo) ;
   * aucune journalisation ; erreurs typées dont les messages n'incluent jamais d'en-tête.
-* Confiance TLS : magasin du JVM + autorité interne optionnelle (`ACS_GIT_CA_BUNDLE`). La
+* Confiance TLS : magasin du JVM + autorité interne optionnelle (`SAYTU_GIT_CA_BUNDLE`). La
   vérification des certificats ne peut pas être désactivée (contrainte SQL `verify_tls` depuis V2).
-* Règle ArchUnit : `com.africodeshield.git..` ne dépend d'aucun framework.
+* Règle ArchUnit : `com.saytu.git..` ne dépend d'aucun framework.
 
 ## Conséquences
 + Code critique compilable et testable avec le seul JDK, contre un vrai serveur HTTP local.

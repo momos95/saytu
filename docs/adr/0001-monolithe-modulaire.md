@@ -7,7 +7,7 @@ Plateforme on-premise exploitée par de petites équipes, souvent sans orchestra
 très différentes : API interactive (légère) et analyses (CPU/mémoire, longues, code non fiable).
 
 ## Décision
-* Un monorepo, deux modules Maven : `acs-core` (domaine + ports, sans framework) et `acs-app`
+* Un monorepo, deux modules Maven : `saytu-core` (domaine + ports, sans framework) et `saytu-app`
   (Spring Boot).
 * Un seul artefact exécuté avec deux profils : `api` et `worker`. Le conteneur `worker` ajoute
   les binaires des scanners et peut être placé sur une autre machine.

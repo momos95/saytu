@@ -5,14 +5,14 @@ import { AuthService } from '../core/auth/auth.service';
 
 /** Application frame for signed-in users: header, collapsible side navigation, routed content. */
 @Component({
-  selector: 'acs-shell',
+  selector: 'saytu-shell',
   imports: [RouterOutlet, RouterLink, RouterLinkActive],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="topbar">
       <button type="button" class="menu-toggle" (click)="menuOpen.set(!menuOpen())"
-              [attr.aria-expanded]="menuOpen()" aria-controls="acs-nav" aria-label="Menu">☰</button>
-      <a routerLink="/dashboard" class="brand"><span class="logo" aria-hidden="true">◆</span> AfriCodeShield</a>
+              [attr.aria-expanded]="menuOpen()" aria-controls="saytu-nav" aria-label="Menu">☰</button>
+      <a routerLink="/dashboard" class="brand"><span class="logo" aria-hidden="true">◆</span> SAYTU</a>
       <div class="user">
         <span class="name" data-testid="user-name">{{ auth.displayName() }}</span>
         @for (role of auth.roles(); track role) {
@@ -22,7 +22,7 @@ import { AuthService } from '../core/auth/auth.service';
       </div>
     </header>
     <div class="layout">
-      <nav id="acs-nav" [class.open]="menuOpen()" aria-label="Navigation principale">
+      <nav id="saytu-nav" [class.open]="menuOpen()" aria-label="Navigation principale">
         <ul>
           @for (item of navItems; track item.path) {
             <li>

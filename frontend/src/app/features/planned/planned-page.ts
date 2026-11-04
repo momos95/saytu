@@ -15,7 +15,7 @@ export interface PlannedPageData {
  * the UI never shows invented data.
  */
 @Component({
-  selector: 'acs-planned-page',
+  selector: 'saytu-planned-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (page(); as p) {
@@ -35,7 +35,7 @@ export interface PlannedPageData {
   styles: `
     .page-header { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
     h1 { margin: 0; font-size: 1.5rem; }
-    .badge { background: var(--acs-accent-soft); color: var(--acs-accent); border-radius: 999px;
+    .badge { background: var(--saytu-accent-soft); color: var(--saytu-accent); border-radius: 999px;
              padding: .15rem .6rem; font-size: .8rem; font-weight: 600; }
   `,
 })

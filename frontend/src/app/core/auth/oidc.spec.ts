@@ -20,8 +20,8 @@ import {
 } from './oidc';
 
 const settings: OidcSettings = {
-  issuer: 'https://sso.example.org/realms/africodeshield',
-  clientId: 'africodeshield-web',
+  issuer: 'https://sso.example.org/realms/saytu',
+  clientId: 'saytu-web',
   redirectUri: 'https://audit.example.org/auth/callback',
 };
 
@@ -68,7 +68,7 @@ describe('oidc', () => {
   it('builds an authorization request with PKCE, state and nonce', async () => {
     const { url, pending } = await createAuthorizationRequest(settings, '/connections', 1000);
     const u = new URL(url);
-    expect(u.origin + u.pathname).toBe('https://sso.example.org/realms/africodeshield/protocol/openid-connect/auth');
+    expect(u.origin + u.pathname).toBe('https://sso.example.org/realms/saytu/protocol/openid-connect/auth');
     expect(u.searchParams.get('code_challenge_method')).toBe('S256');
     expect(u.searchParams.get('code_challenge')).toBe(await pkceChallenge(pending.verifier));
     expect(u.searchParams.get('state')).toBe(pending.state);
@@ -118,7 +118,7 @@ describe('oidc', () => {
     const body = new URLSearchParams(sentBody);
     expect(body.get('grant_type')).toBe('authorization_code');
     expect(body.get('code_verifier')).toBe('the-verifier');
-    expect(body.get('client_id')).toBe('africodeshield-web');
+    expect(body.get('client_id')).toBe('saytu-web');
   });
 
   it('reports token endpoint errors and network failures', async () => {
@@ -134,13 +134,13 @@ describe('oidc', () => {
 
   it('decodes and validates the ID token', () => {
     const now = 1_700_000_000_000;
-    const good = { iss: settings.issuer, aud: 'africodeshield-web', nonce: 'n1', exp: now / 1000 + 300 };
+    const good = { iss: settings.issuer, aud: 'saytu-web', nonce: 'n1', exp: now / 1000 + 300 };
     expect(() => validateIdToken(decodeJwt(jwt(good)), { ...settings, nonce: 'n1' }, now)).not.toThrow();
     const expectCode = (claims: object, code: string) =>
       expect(thrown(() => validateIdToken(decodeJwt(jwt(claims)), { ...settings, nonce: 'n1' }, now)).code).toBe(code);
     expectCode({ ...good, iss: 'https://evil' }, 'invalid_issuer');
     expectCode({ ...good, aud: 'other' }, 'invalid_audience');
-    expectCode({ ...good, aud: ['other', 'africodeshield-web'], azp: 'other' }, 'invalid_azp');
+    expectCode({ ...good, aud: ['other', 'saytu-web'], azp: 'other' }, 'invalid_azp');
     expectCode({ ...good, nonce: 'replayed' }, 'invalid_nonce');
     expectCode({ ...good, exp: now / 1000 - 3600 }, 'token_expired');
     expect(thrown(() => decodeJwt('not-a-jwt')).code).toBe('invalid_jwt');
@@ -163,7 +163,7 @@ describe('oidc', () => {
 
   it('builds the logout URL', () => {
     const u = new URL(logoutUrl(settings, 'id.tok.en', 'https://audit.example.org/login?loggedOut=1'));
-    expect(u.pathname).toBe('/realms/africodeshield/protocol/openid-connect/logout');
+    expect(u.pathname).toBe('/realms/saytu/protocol/openid-connect/logout');
     expect(u.searchParams.get('id_token_hint')).toBe('id.tok.en');
     expect(u.searchParams.get('post_logout_redirect_uri')).toBe('https://audit.example.org/login?loggedOut=1');
   });

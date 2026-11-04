@@ -7,11 +7,11 @@
     "packageManager": "npm"
   },
   "projects": {
-    "africodeshield-web": {
+    "saytu-web": {
       "projectType": "application",
       "root": "",
       "sourceRoot": "src",
-      "prefix": "acs",
+      "prefix": "saytu",
       "schematics": {
         "@schematics/angular:component": {
           "style": "scss",
@@ -50,8 +50,8 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "configurations": {
-            "production": { "buildTarget": "africodeshield-web:build:production" },
-            "development": { "buildTarget": "africodeshield-web:build:development" }
+            "production": { "buildTarget": "saytu-web:build:production" },
+            "development": { "buildTarget": "saytu-web:build:development" }
           },
           "defaultConfiguration": "development"
         },

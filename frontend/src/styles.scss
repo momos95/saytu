@@ -1,31 +1,31 @@
 /* Design tokens. Severity colours are reused by the dashboard (phase 6). */
 :root {
-  --acs-bg: #f6f7f9;
-  --acs-surface: #ffffff;
-  --acs-border: #e3e6eb;
-  --acs-hover: #f0f2f5;
-  --acs-text: #1c2430;
-  --acs-muted: #5d6878;
-  --acs-accent: #0b6e4f;
-  --acs-accent-soft: #e2f3ec;
-  --acs-critical: #b42318;
-  --acs-high: #d4580f;
-  --acs-medium: #b58105;
-  --acs-low: #2f6fb5;
-  --acs-info: #6b7280;
+  --saytu-bg: #f6f7f9;
+  --saytu-surface: #ffffff;
+  --saytu-border: #e3e6eb;
+  --saytu-hover: #f0f2f5;
+  --saytu-text: #1c2430;
+  --saytu-muted: #5d6878;
+  --saytu-accent: #0b6e4f;
+  --saytu-accent-soft: #e2f3ec;
+  --saytu-critical: #b42318;
+  --saytu-high: #d4580f;
+  --saytu-medium: #b58105;
+  --saytu-low: #2f6fb5;
+  --saytu-info: #6b7280;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --acs-bg: #11151b;
-    --acs-surface: #181d25;
-    --acs-border: #2a313c;
-    --acs-hover: #212833;
-    --acs-text: #e6e9ee;
-    --acs-muted: #9aa4b2;
-    --acs-accent: #4fd1a1;
-    --acs-accent-soft: #163a2e;
+    --saytu-bg: #11151b;
+    --saytu-surface: #181d25;
+    --saytu-border: #2a313c;
+    --saytu-hover: #212833;
+    --saytu-text: #e6e9ee;
+    --saytu-muted: #9aa4b2;
+    --saytu-accent: #4fd1a1;
+    --saytu-accent-soft: #163a2e;
     color-scheme: dark;
   }
 }
@@ -33,10 +33,10 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; }
 body {
-  background: var(--acs-bg);
-  color: var(--acs-text);
+  background: var(--saytu-bg);
+  color: var(--saytu-text);
   font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
 }
-.card { background: var(--acs-surface); border: 1px solid var(--acs-border); border-radius: 12px; padding: 20px; }
-.muted { color: var(--acs-muted); }
-:focus-visible { outline: 2px solid var(--acs-accent); outline-offset: 2px; }
+.card { background: var(--saytu-surface); border: 1px solid var(--saytu-border); border-radius: 12px; padding: 20px; }
+.muted { color: var(--saytu-muted); }
+:focus-visible { outline: 2px solid var(--saytu-accent); outline-offset: 2px; }

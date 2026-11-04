@@ -109,7 +109,7 @@ export const PROVIDERS: ProviderInfo[] = [
     urlOptional: false,
     usesToken: false,
     usernameLabel: null,
-    help: 'Répertoire situé sous /srv/git, monté en lecture seule (ACS_LOCAL_REPOS_HOST_DIR).',
+    help: 'Répertoire situé sous /srv/git, monté en lecture seule (SAYTU_LOCAL_REPOS_HOST_DIR).',
   },
 ];
 

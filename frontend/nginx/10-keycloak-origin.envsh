@@ -1,5 +1,5 @@
 #!/bin/sh
 # Sourced by the nginx entrypoint before templates are rendered: derives the Keycloak origin
 # (scheme://host[:port]) from the issuer, for the Content-Security-Policy header.
-ACS_KEYCLOAK_ORIGIN="$(printf '%s' "${ACS_OIDC_ISSUER:-http://localhost:8180/realms/africodeshield}" | sed -E 's#^(https?://[^/]+).*#\1#')"
-export ACS_KEYCLOAK_ORIGIN
+SAYTU_KEYCLOAK_ORIGIN="$(printf '%s' "${SAYTU_OIDC_ISSUER:-http://localhost:8180/realms/saytu}" | sed -E 's#^(https?://[^/]+).*#\1#')"
+export SAYTU_KEYCLOAK_ORIGIN

@@ -1,4 +1,4 @@
-# AfriCodeShield — Architecture (phase 1)
+# SAYTU — Architecture (phase 1)
 
 > Statut : architecture cible validée en phase 1. Les sections marquées **[phase N]** décrivent
 > ce qui sera implémenté plus tard ; rien de ce qui est marqué ainsi n'existe encore dans le code.
@@ -42,11 +42,11 @@ flowchart LR
 
 | Service | Image | Rôle | Exposé |
 |---|---|---|---|
-| `web` | `nginx-unprivileged` + build Angular | SPA, CSP stricte, reverse proxy `/api`, config runtime `/assets/config.json` | port `ACS_HTTP_PORT` |
+| `web` | `nginx-unprivileged` + build Angular | SPA, CSP stricte, reverse proxy `/api`, config runtime `/assets/config.json` | port `SAYTU_HTTP_PORT` |
 | `api` | `eclipse-temurin:21-jre-alpine` | API REST, sécurité, découverte Git, planification, scoring, rapports | non (via `web`) |
 | `worker` **[phase 4]** | image `api` + binaires scanners | consomme la file, clone, exécute les scanners, normalise | non |
-| `keycloak` | `quay.io/keycloak/keycloak:26.4` | OIDC, rôles ADMIN/AUDITOR/VIEWER, MFA, anti-bruteforce | port `ACS_KEYCLOAK_PORT` |
-| `postgres` | `postgres:16-alpine` | base `africodeshield` (rôle `acs`) + base `keycloak` (rôle `keycloak`), isolées | non |
+| `keycloak` | `quay.io/keycloak/keycloak:26.4` | OIDC, rôles ADMIN/AUDITOR/VIEWER, MFA, anti-bruteforce | port `SAYTU_KEYCLOAK_PORT` |
+| `postgres` | `postgres:16-alpine` | base `saytu` (rôle `saytu`) + base `keycloak` (rôle `keycloak`), isolées | non |
 | `ollama` | `ollama/ollama` (profil `ai`) | LLM local pour les recommandations | non, réseau `data` sans egress |
 
 Le réseau `data` est `internal: true` : PostgreSQL et Ollama n'ont aucune route vers l'extérieur.
@@ -54,11 +54,11 @@ Le réseau `data` est `internal: true` : PostgreSQL et Ollama n'ont aucune route
 ## 3. Découpage logiciel (monorepo)
 
 ```
-africodeshield/
+saytu/
 ├── backend/                 Maven multi-module (Java 21)
-│   ├── acs-core/            domaine + ports, AUCUNE dépendance framework
-│   ├── acs-git/             connecteurs Git, JDK seul (java.net.http) — ADR-0005
-│   └── acs-app/             Spring Boot : persistance, REST, sécurité, worker
+│   ├── saytu-core/            domaine + ports, AUCUNE dépendance framework
+│   ├── saytu-git/             connecteurs Git, JDK seul (java.net.http) — ADR-0005
+│   └── saytu-app/             Spring Boot : persistance, REST, sécurité, worker
 ├── frontend/                Angular 20 standalone, zoneless, signals
 ├── infra/                   realm Keycloak, init PostgreSQL
 ├── scripts/                 génération des secrets, vérification du schéma
@@ -66,7 +66,7 @@ africodeshield/
 └── docker-compose.yml
 ```
 
-### 3.1 `acs-core` — domaine et ports (hexagonal)
+### 3.1 `saytu-core` — domaine et ports (hexagonal)
 
 | Package | Contenu | État |
 |---|---|---|
@@ -78,7 +78,7 @@ africodeshield/
 | `core.report` | `ReportFormat` | ✅ ; générateurs phase 6 |
 | `core.security` | `SensitiveValue` (secret jamais imprimable), `TokenCipher` (AES-256-GCM, rotation de clé) | ✅ phases 1-2 |
 
-### 3.1 bis `acs-git` — connecteurs (phase 2)
+### 3.1 bis `saytu-git` — connecteurs (phase 2)
 
 | Package | Contenu | État |
 |---|---|---|
@@ -86,23 +86,23 @@ africodeshield/
 | `git.json` | lecteur JSON strict et borné | ✅ |
 | `git.provider` | GitLab, GitHub, Bitbucket Cloud, Bitbucket Data Center, local : **test de connexion** ✅ ; découverte (namespaces, dépôts, branches) **phase 3** | partiel |
 
-`acs-core` est compilable et testable avec le seul JDK : c'est là que se trouve la logique critique
+`saytu-core` est compilable et testable avec le seul JDK : c'est là que se trouve la logique critique
 (empreintes, dédoublonnage, expurgation, invariants de sécurité des commandes).
 
-### 3.2 `acs-app` — application Spring Boot
+### 3.2 `saytu-app` — application Spring Boot
 
 Organisation **par fonctionnalité** ; les dépendances entre packages sont acycliques (vérifié par
 ArchUnit, `ArchitectureTest`).
 
 | Package | Responsabilité | État |
 |---|---|---|
-| `app.config` | sécurité (resource server JWT), mapping des rôles Keycloak, OpenAPI, propriétés `acs.*` | ✅ |
+| `app.config` | sécurité (resource server JWT), mapping des rôles Keycloak, OpenAPI, propriétés `saytu.*` | ✅ |
 | `app.source` | entités/référentiels connexions, namespaces, dépôts, branches | ✅ persistance ; services phases 2-3 |
 | `app.scanner` | configuration des scanners | ✅ lecture |
 | `app.system` | `GET /api/v1/system/info` (version, scanners configurés, rôles de l'appelant) | ✅ |
 | `app.web` | erreurs RFC 9457, sans trace ni SQL côté client | ✅ |
 | `app.vault` | `TokenVault` : clé maître, chiffrement des tokens | ✅ phase 2 |
-| `app.git` | câblage Spring d'`acs-git` (`acs.git.*`) | ✅ phase 2 |
+| `app.git` | câblage Spring d'`saytu-git` (`saytu.git.*`) | ✅ phase 2 |
 | `app.audit` | journal `audit_event` des actions sensibles | ✅ phase 2 |
 | `app.source` | + `GitConnectionService` / `GitConnectionController` (`/api/v1/git-connections`) | ✅ phase 2 |
 | `app.scan` **[phase 4]** | orchestration : runs, jobs, file, worker, sandbox | — |
@@ -119,14 +119,14 @@ puisqu'il ne parle qu'à PostgreSQL et aux forges Git).
 
 ### 4.1 Authentification et autorisation
 
-* SPA = client public Keycloak `africodeshield-web`, **authorization code + PKCE S256**, pas
+* SPA = client public Keycloak `saytu-web`, **authorization code + PKCE S256**, pas
   d'implicit flow ni de ROPC.
 * API = resource server **stateless** : signature JWT (JWKS récupéré par le réseau interne),
-  `iss` = URL publique de Keycloak, `aud` doit contenir `africodeshield-api` (mapper d'audience).
+  `iss` = URL publique de Keycloak, `aud` doit contenir `saytu-api` (mapper d'audience).
 * Rôles = rôles de realm composites : `ADMIN ⊃ AUDITOR ⊃ VIEWER`. Seuls ces trois rôles sont
   convertis en autorités Spring ; les rôles techniques Keycloak sont ignorés.
 * Politique **deny-by-default** : `/api/**` exige un rôle applicatif, tout le reste (hors
-  `/actuator/health|info` et Swagger si `ACS_EXPOSE_API_DOCS=true`) est refusé. Les opérations
+  `/actuator/health|info` et Swagger si `SAYTU_EXPOSE_API_DOCS=true`) est refusé. Les opérations
   d'écriture seront protégées par `@PreAuthorize` (phase 2).
 * Realm : mot de passe ≥ 12 caractères, protection brute-force, TOTP imposé au premier
   administrateur, jetons d'accès de 5 min, rotation des refresh tokens.
@@ -141,7 +141,7 @@ puisqu'il ne parle qu'à PostgreSQL et aux forges Git).
 
 | Secret | Stockage | Protection |
 |---|---|---|
-| Tokens Git, secrets webhook | `*_ciphertext BYTEA` | AES-256-GCM, IV aléatoire 96 bits, données associées = ligne propriétaire, `key_id` pour la rotation, clé maître `ACS_MASTER_KEY` hors base ✅ |
+| Tokens Git, secrets webhook | `*_ciphertext BYTEA` | AES-256-GCM, IV aléatoire 96 bits, données associées = ligne propriétaire, `key_id` pour la rotation, clé maître `SAYTU_MASTER_KEY` hors base ✅ |
 | Token en mémoire | `SensitiveValue` (`char[]`, `toString()` masqué, effaçable) | ✅ |
 | URL de clone | jamais de credentials (contrainte `CHECK` en base + validation entité) | ✅ |
 | Preuves de findings | `SecretRedactor` appliqué dans le constructeur de `NormalizedFinding` | ✅ |
@@ -230,7 +230,7 @@ Le curseur opaque de `GitProvider.PageRequest` unifie ces quatre modes. Les erre
 (`AUTHENTICATION_FAILED`, `INSUFFICIENT_PERMISSIONS`, `RATE_LIMITED` avec délai, `TLS_ERROR`…)
 pour que l'UI affiche une action précise (« le token n'a pas le scope `read_api` »).
 
-## 6. Normalisation et dédoublonnage (implémenté en phase 1 dans `acs-core`)
+## 6. Normalisation et dédoublonnage (implémenté en phase 1 dans `saytu-core`)
 
 Chaque adaptateur produit des `NormalizedFinding`. L'empreinte (SHA-256, 64 hex) est :
 

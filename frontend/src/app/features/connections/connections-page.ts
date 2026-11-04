@@ -8,7 +8,7 @@ import { ConnectionTest, GitConnection, providerInfo, statusLabel } from './conn
 
 /** Page 3 of the specification: Git connections. Editing is reserved to ADMIN (enforced by the API). */
 @Component({
-  selector: 'acs-connections-page',
+  selector: 'saytu-connections-page',
   imports: [DatePipe, ConnectionForm, ConnectionTestResult],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -20,7 +20,7 @@ import { ConnectionTest, GitConnection, providerInfo, statusLabel } from './conn
     </header>
 
     @if (editing()) {
-      <acs-connection-form [existing]="editTarget()" (saved)="onSaved()" (cancelled)="closeForm()" />
+      <saytu-connection-form [existing]="editTarget()" (saved)="onSaved()" (cancelled)="closeForm()" />
     }
 
     @if (error()) {
@@ -69,7 +69,7 @@ import { ConnectionTest, GitConnection, providerInfo, statusLabel } from './conn
               <p class="error">{{ c.lastTest?.message }}</p>
             }
             @if (results()[c.id]; as r) {
-              <acs-connection-test-result [result]="r" />
+              <saytu-connection-test-result [result]="r" />
             }
             @if (isAdmin()) {
               <div class="actions">
@@ -97,22 +97,22 @@ import { ConnectionTest, GitConnection, providerInfo, statusLabel } from './conn
     .list { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
     .row { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center; }
     .title { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .badge { font-size: .75rem; padding: .1rem .5rem; border-radius: 999px; background: var(--acs-hover); }
-    .badge.off { color: var(--acs-muted); }
-    .status { font-size: .85rem; font-weight: 600; color: var(--acs-muted); }
-    .status.ok { color: var(--acs-accent); }
-    .status.ko { color: var(--acs-critical); }
+    .badge { font-size: .75rem; padding: .1rem .5rem; border-radius: 999px; background: var(--saytu-hover); }
+    .badge.off { color: var(--saytu-muted); }
+    .status { font-size: .85rem; font-weight: 600; color: var(--saytu-muted); }
+    .status.ok { color: var(--saytu-accent); }
+    .status.ko { color: var(--saytu-critical); }
     .meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: .85rem; margin-top: 6px; overflow-wrap: anywhere; }
-    .warning { color: var(--acs-medium); margin: 8px 0 0; font-size: .9rem; }
-    .error { color: var(--acs-critical); margin: 8px 0 0; font-size: .9rem; }
+    .warning { color: var(--saytu-medium); margin: 8px 0 0; font-size: .9rem; }
+    .error { color: var(--saytu-critical); margin: 8px 0 0; font-size: .9rem; }
     .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center; }
     .confirm { font-size: .85rem; }
-    acs-connection-test-result { display: block; margin-top: 10px; }
-    acs-connection-form { display: block; margin-bottom: 16px; }
-    button { font: inherit; padding: .45rem .85rem; border-radius: 6px; border: 1px solid var(--acs-border);
-             background: var(--acs-surface); color: var(--acs-text); cursor: pointer; }
-    button.primary { background: var(--acs-accent); border-color: var(--acs-accent); color: #fff; }
-    button.danger { border-color: var(--acs-critical); color: var(--acs-critical); }
+    saytu-connection-test-result { display: block; margin-top: 10px; }
+    saytu-connection-form { display: block; margin-bottom: 16px; }
+    button { font: inherit; padding: .45rem .85rem; border-radius: 6px; border: 1px solid var(--saytu-border);
+             background: var(--saytu-surface); color: var(--saytu-text); cursor: pointer; }
+    button.primary { background: var(--saytu-accent); border-color: var(--saytu-accent); color: #fff; }
+    button.danger { border-color: var(--saytu-critical); color: var(--saytu-critical); }
     button:disabled { opacity: .6; }
   `,
 })
