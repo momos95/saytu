@@ -27,6 +27,8 @@ out-tsc/
 data/*
 !data/local-repos/
 !data/ca/
+!data/rules/
 data/local-repos/*
 data/ca/*
+data/rules/*
 !data/**/.gitkeep

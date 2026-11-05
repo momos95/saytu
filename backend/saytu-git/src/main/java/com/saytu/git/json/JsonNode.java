@@ -132,6 +132,21 @@ public final class JsonNode {
         return defaultValue;
     }
 
+    /** Numeric value (or numeric string), {@code null} otherwise. */
+    public Double asDouble() {
+        if (kind == Kind.NUMBER) {
+            return ((BigDecimal) value).doubleValue();
+        }
+        if (kind == Kind.STRING) {
+            try {
+                return Double.valueOf((String) value);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     public boolean asBoolean(boolean defaultValue) {
         return kind == Kind.BOOLEAN ? (Boolean) value : defaultValue;
     }

@@ -28,6 +28,7 @@
     <modules>
         <module>saytu-core</module>
         <module>saytu-git</module>
+        <module>saytu-scan</module>
         <module>saytu-app</module>
     </modules>
 
@@ -48,6 +49,11 @@
             <dependency>
                 <groupId>com.saytu</groupId>
                 <artifactId>saytu-git</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.saytu</groupId>
+                <artifactId>saytu-scan</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

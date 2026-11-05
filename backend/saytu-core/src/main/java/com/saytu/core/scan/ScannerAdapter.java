@@ -6,6 +6,7 @@ import com.saytu.core.finding.NormalizedFinding;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Port implemented once per analysis tool (Opengrep, Trivy, Gitleaks, PMD, Checkstyle,
@@ -46,4 +47,22 @@ public interface ScannerAdapter {
 
     /** Parses the report written at {@link CommandSpec#reportFile()} into normalised findings. */
     List<NormalizedFinding> parse(Path reportFile, ScanContext context) throws IOException;
+
+    /**
+     * Version of the rules or vulnerability database the next run will use (e.g. rule pack digest,
+     * Trivy DB build date), recorded with each execution for reproducibility. Empty when unknown.
+     */
+    default Optional<String> rulesetVersion() {
+        return Optional.empty();
+    }
+
+    /**
+     * Reason why the next run can only cover part of the tool's scope (e.g. Trivy without its
+     * vulnerability database still checks configuration files). When present, the run still happens
+     * and its findings are kept, but the execution is recorded as {@code FAILED} with this reason, so
+     * the missing part never reads as "no vulnerability".
+     */
+    default Optional<String> degradedReason() {
+        return Optional.empty();
+    }
 }

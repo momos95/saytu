@@ -8,7 +8,8 @@ import java.util.Objects;
  *
  * @param timeout        wall-clock limit; the whole process tree is killed when exceeded
  * @param cpuSeconds     RLIMIT_CPU (CPU time, all cores)
- * @param memoryBytes    RLIMIT_AS (address space). JVM-based tools get their -Xmx derived from it.
+ * @param memoryBytes    resident memory (RSS) of the process tree, enforced by the sandbox's watchdog.
+ *                       JVM-based tools get their -Xmx derived from it.
  * @param maxOutputBytes RLIMIT_FSIZE, caps report files and protects the disk
  * @param maxOpenFiles   RLIMIT_NOFILE
  */

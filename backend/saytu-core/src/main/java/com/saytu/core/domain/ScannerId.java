@@ -8,7 +8,7 @@ import java.util.Set;
 
 /** Identifiers of the integrated scanners and the finding types each one can produce. */
 public enum ScannerId {
-    OPENGREP("opengrep", EnumSet.of(FindingType.SECURITY), true),
+    OPENGREP("opengrep", EnumSet.of(FindingType.SECURITY, FindingType.QUALITY), true),
     TRIVY("trivy", EnumSet.of(FindingType.DEPENDENCY, FindingType.SECURITY), true),
     GITLEAKS("gitleaks", EnumSet.of(FindingType.SECRET), true),
     PMD("pmd", EnumSet.of(FindingType.QUALITY, FindingType.SECURITY), true),

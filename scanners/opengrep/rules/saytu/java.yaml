@@ -1,0 +1,184 @@
+# SAYTU rule pack - Java. Licence: Apache-2.0 (see ../LICENSE). Tests: java.java (opengrep --test).
+rules:
+  - id: saytu.java.sql-injection-concatenation
+    languages: [java]
+    severity: ERROR
+    message: >-
+      SQL query built by concatenating or formatting a variable. If the value comes from a user,
+      an attacker can change the query (SQL injection).
+    metadata:
+      category: security
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      owasp: ["A03:2021 - Injection"]
+      confidence: MEDIUM
+      remediation: >-
+        Use a PreparedStatement with ? placeholders (or named parameters with JPA / JdbcTemplate)
+        and bind the value; never build the SQL text from input.
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html"]
+    patterns:
+      - pattern-either:
+          - pattern: $S.$METHOD("..." + $X, ...)
+          - pattern: $S.$METHOD($Q + $X, ...)
+          - pattern: $S.$METHOD(String.format(...), ...)
+          - patterns:
+              - pattern-inside: |
+                  String $SQL = $Q + $X;
+                  ...
+              - pattern: $S.$METHOD($SQL, ...)
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: ^(executeQuery|executeUpdate|executeLargeUpdate|execute|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|queryForObject|queryForList|queryForMap|queryForRowSet|query|update|batchUpdate)$
+      - pattern-not: $S.$METHOD("..." + "...", ...)
+
+  - id: saytu.java.command-injection
+    languages: [java]
+    severity: ERROR
+    message: >-
+      Operating-system command built from a variable. If the value comes from a user, an attacker can
+      run arbitrary commands on the server.
+    metadata:
+      category: security
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"]
+      owasp: ["A03:2021 - Injection"]
+      confidence: MEDIUM
+      remediation: >-
+        Avoid running a shell. Call ProcessBuilder with a fixed executable and pass each value as a
+        separate argument, after validating it against an allow-list.
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/OS_Command_Injection_Defense_Cheat_Sheet.html"]
+    pattern-either:
+      - pattern: (Runtime $R).exec($A + $B, ...)
+      - pattern: Runtime.getRuntime().exec($A + $B, ...)
+      - pattern: Runtime.getRuntime().exec(String.format(...), ...)
+      - patterns:
+          - pattern: new ProcessBuilder("$SHELL", "$FLAG", $X, ...)
+          - metavariable-regex:
+              metavariable: $SHELL
+              regex: ^((/usr)?/bin/)?(ba|z|da)?sh$|^(?i:cmd(\.exe)?)$
+          - metavariable-regex:
+              metavariable: $FLAG
+              regex: ^(-c|/c|/C)$
+
+  - id: saytu.java.weak-hash
+    languages: [java]
+    severity: WARNING
+    message: MD5 / SHA-1 / MD2 / MD4 are broken hash functions (collisions); do not use them for security.
+    metadata:
+      category: security
+      cwe: ["CWE-328: Use of Weak Hash"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      confidence: HIGH
+      remediation: >-
+        Use SHA-256 or stronger for integrity, and a password hashing function (Argon2id, bcrypt,
+        scrypt, PBKDF2) for passwords.
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html"]
+    pattern: MessageDigest.getInstance("=~/^(?i)(md2|md4|md5|sha-?1|sha)$/", ...)
+
+  - id: saytu.java.weak-cipher
+    languages: [java]
+    severity: ERROR
+    message: >-
+      Weak or misused cipher (DES, 3DES, RC2, RC4, Blowfish, ECB mode, or "AES" without mode, which
+      defaults to ECB).
+    metadata:
+      category: security
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      owasp: ["A02:2021 - Cryptographic Failures"]
+      confidence: HIGH
+      remediation: Use "AES/GCM/NoPadding" with a random 12-byte IV per message (or ChaCha20-Poly1305).
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html"]
+    pattern-either:
+      - pattern: Cipher.getInstance("=~/^(?i)(des|desede|tripledes|rc2|rc4|arcfour|blowfish)(/.*)?$/", ...)
+      - pattern: Cipher.getInstance("=~/^(?i)[^/]+/ECB/.*$/", ...)
+      - pattern: Cipher.getInstance("=~/^(?i)aes$/", ...)
+
+  - id: saytu.java.tls-trust-all
+    languages: [java]
+    severity: ERROR
+    message: >-
+      TLS certificate or host name verification is disabled: any server, including an attacker in the
+      middle, is accepted.
+    metadata:
+      category: security
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      owasp: ["A07:2021 - Identification and Authentication Failures"]
+      confidence: HIGH
+      remediation: >-
+        Keep the default TrustManager and HostnameVerifier. For an internal CA, add its certificate to
+        a dedicated trust store instead of disabling the checks.
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html"]
+    pattern-either:
+      - pattern: |
+          public void checkServerTrusted(X509Certificate[] $C, String $A) {}
+      - pattern: |
+          public void checkServerTrusted(X509Certificate[] $C, String $A) throws $E {}
+      - pattern: |
+          public boolean verify(String $H, SSLSession $S) { return true; }
+      - pattern: (String $H, SSLSession $S) -> true
+
+  - id: saytu.java.xxe-document-builder
+    languages: [java]
+    severity: WARNING
+    message: >-
+      XML parser created without disabling DOCTYPE declarations: a malicious document can read local
+      files or reach internal services (XXE).
+    metadata:
+      category: security
+      cwe: ["CWE-611: Improper Restriction of XML External Entity Reference"]
+      owasp: ["A05:2021 - Security Misconfiguration"]
+      confidence: MEDIUM
+      remediation: >-
+        Call factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) before
+        creating the parser (same idea for SAXParserFactory and XMLInputFactory).
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/XML_External_Entity_Prevention_Cheat_Sheet.html"]
+    patterns:
+      - pattern-either:
+          - pattern: DocumentBuilderFactory $F = DocumentBuilderFactory.newInstance();
+          - pattern: SAXParserFactory $F = SAXParserFactory.newInstance();
+      - pattern-not-inside: |
+          $F = $FACTORY.newInstance();
+          ...
+          $F.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      - pattern-not-inside: |
+          $T $F = $FACTORY.newInstance();
+          ...
+          $F.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+
+  - id: saytu.java.unsafe-deserialization
+    languages: [java]
+    severity: WARNING
+    message: >-
+      Java native deserialization (ObjectInputStream.readObject) of data that may come from outside
+      can execute code through gadget chains.
+    metadata:
+      category: security
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp: ["A08:2021 - Software and Data Integrity Failures"]
+      confidence: LOW
+      remediation: >-
+        Exchange data as JSON or another data-only format. If Java serialization is unavoidable, set an
+        ObjectInputFilter that only allows the expected classes.
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/Deserialization_Cheat_Sheet.html"]
+    patterns:
+      - pattern: (ObjectInputStream $IN).readObject()
+      - pattern-not-inside: |
+          $IN.setObjectInputFilter(...);
+          ...
+
+  - id: saytu.java.hardcoded-db-password
+    languages: [java]
+    severity: ERROR
+    message: Database password written in the source code.
+    metadata:
+      category: security
+      cwe: ["CWE-798: Use of Hard-coded Credentials"]
+      owasp: ["A07:2021 - Identification and Authentication Failures"]
+      confidence: HIGH
+      remediation: >-
+        Read the password from the environment or a secret manager, and rotate the exposed one: it is
+        in the Git history.
+      references: ["https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html"]
+    patterns:
+      - pattern: DriverManager.getConnection($URL, $USER, "$PWD")
+      - metavariable-regex:
+          metavariable: $PWD
+          regex: ^.+$

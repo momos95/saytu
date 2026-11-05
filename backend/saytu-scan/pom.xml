@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.saytu</groupId>
+        <artifactId>saytu-backend</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>saytu-scan</artifactId>
+    <name>SAYTU scan engine</name>
+    <description>Process sandbox, secure Git checkout and scanner adapters (Opengrep, Trivy, Gitleaks).
+        JDK only, like saytu-git: the code that runs untrusted repositories through external tools has no
+        framework dependency. Tests that need the real tool binaries run when SAYTU_TOOLS_DIR is set.</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.saytu</groupId>
+            <artifactId>saytu-core</artifactId>
+        </dependency>
+        <dependency>
+            <!-- JsonNode: dependency-free JSON reader shared with the Git connectors -->
+            <groupId>com.saytu</groupId>
+            <artifactId>saytu-git</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
