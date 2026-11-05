@@ -18,6 +18,7 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 | [docs/licenses.md](docs/licenses.md) | licences des composants et des règles |
 | [docs/git-connections.md](docs/git-connections.md) | créer les tokens GitLab, GitHub, Bitbucket ; lire un résultat de test |
 | [docs/security.md](docs/security.md) | mesures de sécurité et risques résiduels |
+| [docs/install-windows.md](docs/install-windows.md) | installation sur Windows avec WSL 2 et Docker Engine |
 | [docs/roadmap.md](docs/roadmap.md) | phases et état d'avancement |
 
 ## Prérequis
@@ -27,6 +28,10 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
   `scripts/verify-schema.sh`
 
 ## Démarrage
+
+Poste Windows : suivre [docs/install-windows.md](docs/install-windows.md) (WSL 2 + Docker Engine,
+proxy d'inspection HTTPS).
+
 
 ```bash
 scripts/generate-secrets.sh          # crée .env (mode 600) avec des secrets aléatoires

@@ -4,9 +4,15 @@
 # ---------- build ----------
 FROM node:22-alpine AS build
 WORKDIR /src
+# Extra CA certificates (build context "ca" = ./data/ca) so that npm works behind an HTTPS inspection proxy
+COPY --from=ca / /tmp/extra-ca/
+RUN cat /tmp/extra-ca/*.pem /tmp/extra-ca/*.crt /tmp/extra-ca/*.cer 2>/dev/null > /etc/ssl/extra-ca.pem; \
+    if [ -s /etc/ssl/extra-ca.pem ]; then echo "extra CA certificates: $(grep -c 'BEGIN CERTIFICATE' /etc/ssl/extra-ca.pem)"; \
+    else echo "# none" > /etc/ssl/extra-ca.pem; fi
 COPY package.json package-lock.json* ./
 # Reproducible install when the lockfile is committed (recommended); plain install otherwise.
 RUN --mount=type=cache,target=/root/.npm \
+    if grep -q 'BEGIN CERTIFICATE' /etc/ssl/extra-ca.pem; then export NODE_EXTRA_CA_CERTS=/etc/ssl/extra-ca.pem; fi; \
     if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
 COPY . .
 RUN npx ng build --configuration production

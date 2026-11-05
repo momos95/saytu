@@ -5,6 +5,13 @@
 # ---------- build ----------
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /src
+# Extra CA certificates (build context "ca" = ./data/ca): internal CA or HTTPS inspection proxy
+# (Netskope, Zscaler...). Without them Maven cannot download dependencies behind such a proxy.
+COPY --from=ca / /tmp/extra-ca/
+RUN set -e; for f in /tmp/extra-ca/*.pem /tmp/extra-ca/*.crt /tmp/extra-ca/*.cer; do \
+      [ -f "$f" ] || continue; \
+      keytool -importcert -noprompt -cacerts -storepass changeit -alias "extra-$(basename "$f")" -file "$f"; \
+    done
 # Dependency layer cached independently of the sources
 COPY pom.xml .
 COPY saytu-core/pom.xml saytu-core/
@@ -24,6 +31,12 @@ LABEL org.opencontainers.image.title="saytu-api" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/momos95/saytu"
 RUN addgroup -S -g 10001 saytu && adduser -S -u 10001 -G saytu -h /app saytu
+# Same extra CA certificates at runtime, for calls to Git platforms through an inspection proxy
+COPY --from=ca / /tmp/extra-ca/
+RUN set -e; for f in /tmp/extra-ca/*.pem /tmp/extra-ca/*.crt /tmp/extra-ca/*.cer; do \
+      [ -f "$f" ] || continue; \
+      keytool -importcert -noprompt -cacerts -storepass changeit -alias "extra-$(basename "$f")" -file "$f"; \
+    done; rm -rf /tmp/extra-ca
 WORKDIR /app
 COPY --from=build --chown=saytu:saytu /src/saytu-app/target/saytu.jar app.jar
 USER 10001:10001

@@ -86,6 +86,11 @@ services:
     <<: *hardening
     build:
       context: ./backend
+      # PEM certificates in ./data/ca are trusted at build time (Maven) and at runtime (Git platforms)
+      additional_contexts:
+        ca: ${SAYTU_CA_DIR:-./data/ca}
+      args:
+        SKIP_TESTS: ${SAYTU_SKIP_TESTS:-false}
     image: saytu/api:${SAYTU_VERSION:-dev}
     environment:
       SAYTU_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-saytu}
@@ -109,7 +114,7 @@ services:
     volumes:
       # Local repositories (LOCAL connections), mounted read-only
       - ${SAYTU_LOCAL_REPOS_HOST_DIR:-./data/local-repos}:/srv/git:ro
-      # Internal CA certificates (PEM), see SAYTU_GIT_CA_BUNDLE
+      # Internal CA certificates (PEM), optional extra bundle for Git platforms, see SAYTU_GIT_CA_BUNDLE
       - ${SAYTU_CA_DIR:-./data/ca}:/etc/saytu/ca:ro
     read_only: true
     tmpfs:
@@ -130,6 +135,8 @@ services:
     <<: *hardening
     build:
       context: ./frontend
+      additional_contexts:
+        ca: ${SAYTU_CA_DIR:-./data/ca}
     image: saytu/web:${SAYTU_VERSION:-dev}
     environment:
       SAYTU_OIDC_ISSUER: ${SAYTU_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}/realms/saytu
