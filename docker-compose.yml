@@ -26,11 +26,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-saytu}
       POSTGRES_USER: ${POSTGRES_USER:-saytu}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
       POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
     networks: [data]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -40,6 +38,39 @@ services:
     deploy:
       resources:
         limits: { cpus: "2", memory: 2g }
+
+  # One-shot job, run on every "up": creates the Keycloak role and database if missing and
+  # (re)applies KEYCLOAK_DB_PASSWORD from .env. Idempotent; works on an existing volume.
+  # The SQL lives here, not in a script file, so Windows line endings (CRLF) cannot break it.
+  keycloak-db-init:
+    image: postgres:16-alpine
+    restart: "no"
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-saytu}
+      PGDATABASE: ${POSTGRES_DB:-saytu}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+    command:
+      - sh
+      - -ec
+      - |
+        psql -X -q -v ON_ERROR_STOP=1 -v kc_password="$$KEYCLOAK_DB_PASSWORD" <<'SQL'
+        SELECT 'CREATE ROLE keycloak' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'keycloak') \gexec
+        ALTER ROLE keycloak WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE PASSWORD :'kc_password';
+        SELECT 'CREATE DATABASE keycloak OWNER keycloak ENCODING ''UTF8'' TEMPLATE template0'
+         WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'keycloak') \gexec
+        REVOKE ALL ON DATABASE keycloak FROM PUBLIC;
+        -- the application database is not reachable by the keycloak role
+        SELECT format('REVOKE ALL ON DATABASE %I FROM PUBLIC', current_database()) \gexec
+        SQL
+        echo "keycloak database ready"
+    networks: [data]
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   keycloak:
     <<: *hardening
@@ -69,8 +100,8 @@ services:
       - "${SAYTU_KEYCLOAK_PORT:-8180}:8080"
     networks: [data, edge]
     depends_on:
-      postgres:
-        condition: service_healthy
+      keycloak-db-init:
+        condition: service_completed_successfully
     healthcheck:
       # the image has no curl: plain HTTP request on the management port through bash /dev/tcp
       test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]

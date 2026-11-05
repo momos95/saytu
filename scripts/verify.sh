@@ -10,7 +10,7 @@ fail() { printf '  \e[31mFAIL\e[0m %s\n' "$1"; status=1; }
 skip() { printf '  \e[33mSKIP\e[0m %s (%s)\n' "$1" "$2"; }
 
 echo "== Shell scripts"
-for f in scripts/*.sh infra/postgres/init/*.sh frontend/nginx/*.envsh; do
+for f in scripts/*.sh frontend/nginx/*.envsh; do
   bash -n "$f" && pass "syntax $f" || fail "syntax $f"
 done
 

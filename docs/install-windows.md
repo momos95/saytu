@@ -96,6 +96,8 @@ Dépôts locaux : les placer dans `~/saytu/data/local-repos/`, ils apparaissent 
 | Un service n'est pas « healthy » | `docker compose logs <service> \| tail -100` |
 | Erreur de certificat pendant `mvn` ou `npm` | certificat du proxy absent de `data/ca/` (format Base-64), puis `docker compose build --no-cache` |
 | « Certificat TLS non reconnu » en testant une connexion Git | même cause : certificat dans `data/ca/`, puis `docker compose up -d --build api` |
+| Keycloak : `password authentication failed for user "keycloak"` | `docker compose up -d` : le service `keycloak-db-init` recrée le rôle et réapplique `KEYCLOAK_DB_PASSWORD` ; voir `docker compose logs keycloak-db-init` |
+| `port is already allocated` (8080 ou 8180 pris par un autre projet) | dans `.env` : `SAYTU_HTTP_PORT=8090` et `SAYTU_PUBLIC_URL=http://localhost:8090` (ou `SAYTU_KEYCLOAK_PORT` et `SAYTU_KEYCLOAK_PUBLIC_URL`), puis `docker compose up -d` |
 | Repartir de zéro | `docker compose down -v`, supprimer `.env`, reprendre à `scripts/generate-secrets.sh` |
 
 ## Sans WSL
