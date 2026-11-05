@@ -16,6 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
@@ -38,7 +39,7 @@ class SystemInfoControllerSecurityTest {
     @BeforeEach
     void setUp() {
         when(scanners.list()).thenReturn(List.of(new ScannerView("trivy", true, 900, 1800, 2048, false,
-                List.of("DEPENDENCY", "SECURITY"), null, Instant.EPOCH)));
+                List.of("DEPENDENCY", "SECURITY"), List.of(), Map.of(), List.of(), null, Instant.EPOCH)));
     }
 
     @Test
