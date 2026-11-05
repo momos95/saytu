@@ -1,5 +1,6 @@
 package com.saytu.core.scan;
 
+import com.saytu.core.domain.Language;
 import com.saytu.core.domain.ScannerId;
 import com.saytu.core.finding.NormalizedFinding;
 
@@ -7,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Port implemented once per analysis tool (Opengrep, Trivy, Gitleaks, PMD, Checkstyle,
@@ -47,6 +49,14 @@ public interface ScannerAdapter {
 
     /** Parses the report written at {@link CommandSpec#reportFile()} into normalised findings. */
     List<NormalizedFinding> parse(Path reportFile, ScanContext context) throws IOException;
+
+    /**
+     * Languages this tool analyses. When none of them is present in the checkout the scanner is not
+     * run and recorded as NOT_APPLICABLE. Empty set = every checkout (multi-language tools).
+     */
+    default Set<Language> languages() {
+        return Set.of();
+    }
 
     /**
      * Version of the rules or vulnerability database the next run will use (e.g. rule pack digest,

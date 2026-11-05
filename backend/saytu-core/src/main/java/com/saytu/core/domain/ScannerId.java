@@ -13,7 +13,11 @@ public enum ScannerId {
     GITLEAKS("gitleaks", EnumSet.of(FindingType.SECRET), true),
     PMD("pmd", EnumSet.of(FindingType.QUALITY, FindingType.SECURITY), true),
     CHECKSTYLE("checkstyle", EnumSet.of(FindingType.QUALITY), true),
-    DEPENDENCY_CHECK("dependency-check", EnumSet.of(FindingType.DEPENDENCY), false);
+    DEPENDENCY_CHECK("dependency-check", EnumSet.of(FindingType.DEPENDENCY), false),
+    ESLINT("eslint", EnumSet.of(FindingType.QUALITY, FindingType.SECURITY), true),
+    PHPCS("phpcs", EnumSet.of(FindingType.QUALITY), true),
+    CPPCHECK("cppcheck", EnumSet.of(FindingType.QUALITY, FindingType.SECURITY), true),
+    SQLFLUFF("sqlfluff", EnumSet.of(FindingType.QUALITY), true);
 
     private final String key;
     private final Set<FindingType> producedTypes;

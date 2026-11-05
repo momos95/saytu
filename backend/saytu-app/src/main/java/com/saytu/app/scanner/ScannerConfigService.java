@@ -60,9 +60,13 @@ public class ScannerConfigService {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         entity.update(update.enabled(), update.timeoutSeconds(), update.cpuSeconds(), update.memoryMb(),
                 auth == null ? "system" : auth.getName(), clock.instant());
+        if (update.settings() != null) {
+            entity.replaceSettings(ScannerSettings.validate(scannerId, update.settings()));
+        }
         audit.record("SCANNER_CONFIG_UPDATED", "scanner_config", scannerId, Map.of(
                 "enabled", update.enabled(), "timeoutSeconds", update.timeoutSeconds(),
-                "cpuSeconds", update.cpuSeconds(), "memoryMb", update.memoryMb()));
+                "cpuSeconds", update.cpuSeconds(), "memoryMb", update.memoryMb(),
+                "settings", update.settings() == null ? Map.of() : update.settings()));
         return ScannerView.of(entity);
     }
 
@@ -70,20 +74,36 @@ public class ScannerConfigService {
      * @param optional            not enabled by default (OWASP Dependency-Check)
      * @param producedTypes       finding types this scanner can produce
      */
+    /**
+     * @param languages        languages the tool analyses (empty: every repository)
+     * @param settings         current tool options
+     * @param settingKeys      options that can be changed
+     */
     public record ScannerView(String id, boolean enabled, int timeoutSeconds, int cpuSeconds, int memoryMb,
-                              boolean optional, List<String> producedTypes, String updatedBy, java.time.Instant updatedAt) {
+                              boolean optional, List<String> producedTypes, List<String> languages,
+                              Map<String, String> settings, List<String> settingKeys,
+                              String updatedBy, java.time.Instant updatedAt) {
         static ScannerView of(ScannerConfigEntity e) {
             var known = ScannerId.fromKey(e.getScannerId());
             return new ScannerView(e.getScannerId(), e.isEnabled(), e.getTimeoutSeconds(), e.getCpuSeconds(), e.getMemoryMb(),
                     known.map(k -> !k.enabledByDefault()).orElse(false),
                     known.map(k -> k.producedTypes().stream().map(Enum::name).sorted().toList()).orElse(List.of()),
+                    LANGUAGES.getOrDefault(e.getScannerId(), List.of()),
+                    stringSettings(e.getSettings()),
+                    ScannerSettings.ALLOWED.getOrDefault(e.getScannerId(), Map.of()).keySet().stream().sorted().toList(),
                     e.getUpdatedBy(), e.getUpdatedAt());
         }
     }
 
+    /** Languages per tool, for display (the worker uses the adapters' own declaration). */
+    static final Map<String, List<String>> LANGUAGES = Map.of(
+            "checkstyle", List.of("java"), "pmd", List.of("java"), "eslint", List.of("javascript", "typescript"),
+            "phpcs", List.of("php"), "cppcheck", List.of("c", "cpp"), "sqlfluff", List.of("sql"));
+
     public record ScannerUpdate(boolean enabled,
                                 @jakarta.validation.constraints.Min(30) @jakarta.validation.constraints.Max(21_600) int timeoutSeconds,
                                 @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(86_400) int cpuSeconds,
-                                @jakarta.validation.constraints.Min(64) @jakarta.validation.constraints.Max(65_536) int memoryMb) {
+                                @jakarta.validation.constraints.Min(64) @jakarta.validation.constraints.Max(65_536) int memoryMb,
+                                Map<String, String> settings) {
     }
 }

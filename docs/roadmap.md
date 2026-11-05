@@ -6,7 +6,7 @@
 | 2 | Authentification Keycloak dans l'UI, coffre de tokens AES-GCM, CRUD + test des connexions Git | ✅ livrée (voir détail) |
 | 3 | Découverte organisations / dépôts / branches, sélection, configuration des branches | ✅ livrée (voir détail) |
 | 4 | Worker, file d'exécution, sandbox, clone sécurisé, Opengrep, Trivy, Gitleaks | ✅ livrée (voir détail) |
-| 5 | PMD, Checkstyle, normalisation complète, scoring et couverture | à faire |
+| 5 | Détection des langages, outils de qualité par langage (Checkstyle, PMD, ESLint, PHPCS, Cppcheck, SQLFluff), scoring et couverture | ✅ livrée (voir détail) |
 | 6 | Dashboard Angular, détail dépôt, liste/détail des vulnérabilités, rapports HTML/PDF/JSON/SARIF | à faire |
 | 7 | Planification cron, historique, comparaison de scans, webhooks, recommandations, Ollama | à faire |
 | 8 | Durcissement, tests de bout en bout, SBOM, guides d'exploitation et de mise à jour hors ligne | à faire |
@@ -33,6 +33,48 @@ chiffrement) : une installation existante doit être réinitialisée.
 **Avec Docker Compose** : `docker compose down -v`, renommer les variables `ACS_*` en `SAYTU_*` dans
 `.env` (ou le regénérer avec `scripts/generate-secrets.sh` après l'avoir supprimé), puis
 `docker compose up -d --build`.
+
+## Phase 5 — détail (5 novembre 2026)
+
+### Livré et vérifié dans l'environnement de développement
+* Détection des langages (`LanguageDetector`) : Java, TypeScript, JavaScript, SQL, PHP, C, C++, C#
+  et 18 autres ; dossiers de dépendances et fichiers générés ignorés ; en-têtes `.h` rattachés au C++
+  s'il n'y a pas de C ; étiquette à partir de 1 % du code ou 5 fichiers.
+* Chaque outil déclare ses langages ; absent ⇒ `NOT_APPLICABLE` (« aucun fichier PHP »).
+* Adaptateurs Checkstyle, PMD, ESLint, PHP_CodeSniffer, Cppcheck, SQLFluff : options qui empêchent le
+  dépôt de désactiver l'analyse (configurations locales ignorées, `--no-inline-config`,
+  `--ignore-annotations`, `--disable-noqa`, suppressions PMD rapportées), lecture XML sans DOCTYPE.
+* Scoring `v1` (`ScoreCalculator`) : sécurité, qualité, global, couverture, fiabilité, agrégation
+  dépôt / organisation / global — voir [scoring.md](scoring.md).
+* Tests exécutés : `saytu-core` **64/64**, `saytu-git` **89/89**, `saytu-scan` **42/42** dont les
+  analyses réelles par **PHP_CodeSniffer 4.0.2, Cppcheck 2.13.0, Opengrep, Trivy et Gitleaks** sur un
+  projet d'exemple multi-langages ; `ScannerSettingsTest` 2/2.
+* Migration V5 sur PostgreSQL 16 : contrôles de schéma réussis ; requêtes `ScoreSql` / `ScanSql` :
+  **65 contrôles réussis** (`scripts/verify-scan-sql.sh`).
+* Frontend : logique (raisons traduites, scores « — », étiquettes de langages) — **12 specs exécutées
+  dans Node, 12 réussies**.
+
+### Livré, écrit pour compiler, **non exécuté ici** (Maven Central, npm, PyPI bloqués)
+* Checkstyle, PMD, ESLint et SQLFluff n'ont pas pu être téléchargés : leurs adaptateurs sont testés sur
+  des rapports au format documenté (SQLFluff : vrai rapport 4.4.0 produit hors de cette machine), et
+  `QualityToolsTest` les exécute réellement pendant `docker compose build` (outils présents dans l'image).
+* Spring : `ScoreService`, `ScoreController` (`GET /api/v1/scores`, `GET|PUT /api/v1/scores/formula`),
+  options des scanners, langages des dépôts. Le paquet `app.scan` compile avec `-Werror` contre des
+  souches des API Spring.
+* Angular : étiquettes de langages et scores (Audits, Organisations & dépôts), options des outils
+  (Scanners & branches), specs TestBed mises à jour.
+* Image `worker` : étapes `jvmtools` (Maven), `eslint` (Node 22) et SQLFluff ; chaque outil est lancé
+  une fois pendant la construction (« smoke test »).
+
+### Limites connues de la phase 5
+* **C#** : aucun analyseur de qualité libre sans compilation ; affiché « non couvert » (Opengrep,
+  Gitleaks et Trivy analysent quand même le C# pour la sécurité).
+* Python, Go, Kotlin… : pas d'outil de qualité dans cette version (qualité non couverte).
+* Pas de déduplication entre outils de qualité (par conception : règles non équivalentes).
+* Le dialecte SQL est global (un seul par installation) ; un dépôt mêlant plusieurs dialectes aura des
+  erreurs d'analyse SQLFluff rapportées comme résultats.
+* La construction de l'image est plus longue (≈ 5 à 10 min de plus) et l'image plus lourde
+  (JRE-outils, Node, PHP, Python).
 
 ## Phase 4 — détail (5 novembre 2026)
 

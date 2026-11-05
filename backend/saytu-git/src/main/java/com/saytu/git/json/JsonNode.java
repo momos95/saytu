@@ -66,6 +66,32 @@ public final class JsonNode {
         return kind == Kind.ARRAY ? asList() : List.of();
     }
 
+    /**
+     * Plain Java value: {@code Map<String, Object>} (insertion order), {@code List<Object>}, {@code String},
+     * {@code BigDecimal}, {@code Boolean}, or {@code null} for JSON null and missing nodes.
+     */
+    public Object toJava() {
+        return switch (kind) {
+            case OBJECT -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                asMap().forEach((k, v) -> m.put(k, v.toJava()));
+                yield m;
+            }
+            case ARRAY -> {
+                List<Object> l = new ArrayList<>();
+                elements().forEach(e -> l.add(e.toJava()));
+                yield l;
+            }
+            case NULL, MISSING -> null;
+            default -> value;
+        };
+    }
+
+    /** Field names of an object, in document order; empty for other kinds. */
+    public List<String> fieldNames() {
+        return kind == Kind.OBJECT ? List.copyOf(asMap().keySet()) : List.of();
+    }
+
     public int size() {
         return switch (kind) {
             case ARRAY -> asList().size();

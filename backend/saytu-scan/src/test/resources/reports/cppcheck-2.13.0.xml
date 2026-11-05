@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<results version="2">
+    <cppcheck version="2.13.0"/>
+    <errors>
+        <error id="arrayIndexOutOfBounds" severity="error" msg="Array &apos;values[4]&apos; accessed at index 4, which is out of bounds." verbose="Array &apos;values[4]&apos; accessed at index 4, which is out of bounds." cwe="788" file0="native/buffer.c">
+            <location file="native/buffer.c" line="13" column="11" info="Array index out of bounds"/>
+        </error>
+        <error id="memleak" severity="error" msg="Memory leak: p" verbose="Memory leak: p" cwe="401" file0="native/buffer.c">
+            <location file="native/buffer.c" line="9" column="9"/>
+            <symbol>p</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;values[4]&apos; is assigned a value that is never used." verbose="Variable &apos;values[4]&apos; is assigned a value that is never used." cwe="563" file0="native/buffer.c">
+            <location file="native/buffer.c" line="13" column="15"/>
+            <symbol>values[4]</symbol>
+        </error>
+        <error id="unusedAllocatedMemory" severity="style" msg="Variable &apos;p&apos; is allocated memory that is never used." verbose="Variable &apos;p&apos; is allocated memory that is never used." cwe="563" file0="native/buffer.c">
+            <location file="native/buffer.c" line="7" column="15"/>
+            <symbol>p</symbol>
+        </error>
+        <error id="unusedVariable" severity="style" msg="Unused variable: x" verbose="Unused variable: x" cwe="563" file0="native/buffer.c">
+            <location file="native/buffer.c" line="18" column="9"/>
+            <symbol>x</symbol>
+        </error>
+    </errors>
+</results>

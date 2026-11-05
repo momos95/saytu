@@ -142,6 +142,19 @@ final class AdapterSupport {
         return v >= 1 && v <= Integer.MAX_VALUE ? (int) v : null;
     }
 
+    /** Integer setting, or the default when absent or invalid. */
+    static int intSetting(java.util.Map<String, String> settings, String key, int def) {
+        String v = settings.get(key);
+        if (v == null) {
+            return def;
+        }
+        try {
+            return Integer.parseInt(v.strip());
+        } catch (NumberFormatException e) {
+            return def;
+        }
+    }
+
     static String sha256Hex(String text) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(text.getBytes(StandardCharsets.UTF_8)));

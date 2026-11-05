@@ -47,11 +47,19 @@ describe('AuditsPage', () => {
       checkoutBytes: 2048, findingsCount: 2, newFindings: 2, resolvedFindings: 0, scanners: [
         { scanner: 'opengrep', status: 'SUCCEEDED', toolVersion: '1.33.1', rulesetVersion: 'saytu@x', durationMs: 2100, findingsCount: 2, errorMessage: null },
         { scanner: 'trivy', status: 'FAILED', toolVersion: '0.76.1', rulesetVersion: null, durationMs: 900, findingsCount: 0, errorMessage: 'database missing' },
-      ] }] });
+        { scanner: 'phpcs', status: 'NOT_APPLICABLE', toolVersion: null, rulesetVersion: null, durationMs: null, findingsCount: 0, errorMessage: 'no PHP file' },
+      ], languages: ['java', 'typescript'], score: { security: null, quality: 88, global: null, coverage: 40,
+        reliability: 'LOW', formulaVersion: '1', details: {}, computedAt: RUN.createdAt } }] });
     await fixture.whenStable();
     const job = (fixture.nativeElement as HTMLElement).querySelector('[data-testid="job"]')!;
     expect(job.textContent).toContain('Opengrep : 2 résultat(s)');
     expect(job.textContent).toContain('Trivy : échec, résultats inconnus');
+    expect(job.textContent).toContain('PHP_CodeSniffer : rien à analyser (aucun fichier PHP)');
+    expect(Array.from(job.querySelectorAll('[data-testid="language"]')).map(x => x.textContent?.trim())).toEqual(['Java', 'TypeScript']);
+    const scores = job.querySelector('[data-testid="scores"]')!.textContent!;
+    expect(scores).toContain('Sécurité —');
+    expect(scores).toContain('Qualité 88');
+    expect(scores).toContain('couverture 40 %');
   });
 
   it('launches an audit of every selected repository', async () => {

@@ -42,6 +42,8 @@ export interface Repository {
   branchMode: BranchMode;
   branches: string[];
   lastActivityAt: string | null;
+  /** language keys of the latest analysed branch, most present first */
+  languages: string[];
 }
 
 export interface PageView<T> {
@@ -93,6 +95,10 @@ export interface Scanner {
   memoryMb: number;
   optional: boolean;
   producedTypes: string[];
+  /** languages the tool analyses; empty = every repository */
+  languages: string[];
+  settings: Record<string, string>;
+  settingKeys: string[];
   updatedBy: string | null;
   updatedAt: string;
 }
@@ -119,5 +125,33 @@ export const SCANNER_LABELS: Record<string, string> = {
   gitleaks: 'Gitleaks — secrets dans le code',
   pmd: 'PMD — qualité du code Java',
   checkstyle: 'Checkstyle — conventions Java',
+  eslint: 'ESLint — qualité et pièges JavaScript / TypeScript',
+  phpcs: 'PHP_CodeSniffer — norme de codage PHP',
+  cppcheck: 'Cppcheck — erreurs et qualité C / C++',
+  sqlfluff: 'SQLFluff — qualité du SQL',
   'dependency-check': 'OWASP Dependency-Check — dépendances (optionnel, lent)',
+};
+
+/** Display names of the detected languages (keys of Language.java). */
+export const LANGUAGE_LABELS: Record<string, string> = {
+  java: 'Java', kotlin: 'Kotlin', scala: 'Scala', groovy: 'Groovy', typescript: 'TypeScript', javascript: 'JavaScript',
+  vue: 'Vue', svelte: 'Svelte', python: 'Python', go: 'Go', php: 'PHP', c: 'C', cpp: 'C++', csharp: 'C#', sql: 'SQL',
+  ruby: 'Ruby', rust: 'Rust', swift: 'Swift', dart: 'Dart', 'objective-c': 'Objective-C', shell: 'Shell',
+  powershell: 'PowerShell', dockerfile: 'Dockerfile', terraform: 'Terraform', html: 'HTML', css: 'CSS',
+};
+
+export function languageLabel(key: string): string {
+  return LANGUAGE_LABELS[key] ?? key;
+}
+
+/** Tool options shown on the settings page, with their help text. */
+export const SETTING_LABELS: Record<string, string> = {
+  jobs: 'Parallélisme',
+  threads: 'Parallélisme',
+  processes: 'Parallélisme',
+  fileTimeoutSeconds: 'Délai par fichier (s)',
+  exclude: 'Exclusions supplémentaires (motifs séparés par des virgules)',
+  honorInlineAllow: 'Respecter les commentaires « gitleaks:allow » (true / false)',
+  standard: 'Norme (PSR12, PSR2, PSR1, PEAR, Squiz, Zend)',
+  dialect: 'Dialecte SQL (ansi, postgres, mysql, tsql, oracle…)',
 };

@@ -1,4 +1,4 @@
-import { ExecutionStatus, Finding, RunStatus, ScanRun, ScannerExecution } from './audits.model';
+import { ExecutionStatus, Finding, Reliability, RunStatus, ScanRun, ScannerExecution, ScoreView } from './audits.model';
 
 export const RUN_STATUS_LABELS: Record<RunStatus, string> = {
   QUEUED: 'En attente',
@@ -23,6 +23,10 @@ export const SHORT_SCANNER_LABELS: Record<string, string> = {
   gitleaks: 'Gitleaks',
   pmd: 'PMD',
   checkstyle: 'Checkstyle',
+  eslint: 'ESLint',
+  phpcs: 'PHP_CodeSniffer',
+  cppcheck: 'Cppcheck',
+  sqlfluff: 'SQLFluff',
   'dependency-check': 'Dependency-Check',
 };
 
@@ -107,10 +111,14 @@ export function describeExecution(e: ScannerExecution): string {
   switch (e.status) {
     case 'SUCCEEDED':
       return `${name} : ${e.findingsCount} résultat(s)`;
-    case 'NOT_APPLICABLE':
-      return `${name} : rien à analyser`;
-    case 'SKIPPED':
-      return `${name} : non exécuté${e.errorMessage ? ` (${e.errorMessage})` : ''}`;
+    case 'NOT_APPLICABLE': {
+      const why = translateReason(e.errorMessage);
+      return `${name} : rien à analyser${why ? ` (${why})` : ''}`;
+    }
+    case 'SKIPPED': {
+      const why = translateReason(e.errorMessage);
+      return `${name} : non exécuté${why ? ` (${why})` : ''}`;
+    }
     case 'TIMED_OUT':
       return `${name} : délai dépassé, résultats inconnus`;
     case 'FAILED':
@@ -144,4 +152,48 @@ export function location(f: Pick<Finding, 'filePath' | 'startLine' | 'packageNam
 
 export function shortSha(sha: string | null): string {
   return sha ? sha.substring(0, 8) : '';
+}
+
+/** French wording of the engine's fixed "not run" reasons; other messages are shown as they are. */
+export function translateReason(reason: string | null): string {
+  if (!reason) {
+    return '';
+  }
+  switch (reason) {
+    case 'not integrated in this version':
+      return 'non intégré dans cette version';
+    case 'disabled in the scanner settings':
+      return 'désactivé dans les réglages';
+    case 'job cancelled':
+      return 'audit annulé';
+    case 'no Opengrep rule pack installed':
+      return 'aucun pack de règles Opengrep installé';
+  }
+  const m = /^no (.+) file$/.exec(reason);
+  return m ? `aucun fichier ${m[1]}` : reason;
+}
+
+export const RELIABILITY_LABELS: Record<Reliability, string> = {
+  HIGH: 'fiabilité élevée',
+  MEDIUM: 'fiabilité moyenne',
+  LOW: 'fiabilité faible',
+  INSUFFICIENT: 'couverture insuffisante',
+};
+
+/** "82" or "—" when the score could not be given (coverage too low). */
+export function formatScore(value: number | null | undefined): string {
+  return value === null || value === undefined ? '—' : String(Math.round(value));
+}
+
+/** Colour band of a score: never "good" when the score is missing. */
+export function scoreTone(value: number | null | undefined): 'good' | 'fair' | 'poor' | 'none' {
+  if (value === null || value === undefined) {
+    return 'none';
+  }
+  return value >= 80 ? 'good' : value >= 60 ? 'fair' : 'poor';
+}
+
+/** Tooltip of a score badge: coverage and reliability, so a high score never hides a thin analysis. */
+export function scoreTitle(score: ScoreView): string {
+  return `Couverture ${Math.round(score.coverage)} % — ${RELIABILITY_LABELS[score.reliability]} (formule ${score.formulaVersion})`;
 }

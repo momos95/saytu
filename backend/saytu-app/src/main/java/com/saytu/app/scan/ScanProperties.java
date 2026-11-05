@@ -19,7 +19,7 @@ public record ScanProperties(Worker worker, Tools tools, Checkout checkout) {
 
     public ScanProperties {
         worker = worker == null ? new Worker(false, null, 0, null, null, null) : worker;
-        tools = tools == null ? new Tools(null, null, null, null, null, null, null, null, null, false, null) : tools;
+        tools = tools == null ? new Tools(null, null, null, null, null, null, null, null, null, false, null, null) : tools;
         checkout = checkout == null ? new Checkout(null, 0, 0) : checkout;
     }
 
@@ -53,11 +53,15 @@ public record ScanProperties(Worker worker, Tools tools, Checkout checkout) {
      * @param trivyDbRepository   OCI repository of the vulnerability database ({@code null} = Trivy default)
      * @param trivyDbAutoUpdate   download / refresh the database from the worker (disable on air-gapped sites)
      * @param trivyDbUpdateInterval refresh period
+     * @param home                directory of the other tools: checkstyle/ and pmd/ (jars), eslint/
+     *                            (config + node_modules), node/bin/node, phpcs/bin/phpcs, sqlfluff/bin/sqlfluff;
+     *                            php and cppcheck come from the system ({@code /usr/bin})
      */
     public record Tools(Path git, Path opengrep, Path opengrepRuntime, List<Path> opengrepRules, Path trivy,
                         Path trivyCacheDir, Path gitleaks, Path gitleaksConfig, String trivyDbRepository,
-                        boolean trivyDbAutoUpdate, Duration trivyDbUpdateInterval) {
+                        boolean trivyDbAutoUpdate, Duration trivyDbUpdateInterval, Path home) {
         public Tools {
+            home = orDefault(home, "/opt/saytu/tools");
             git = orDefault(git, "/usr/bin/git");
             opengrep = orDefault(opengrep, "/opt/saytu/tools/opengrep");
             opengrepRuntime = blankToNull(opengrepRuntime);
@@ -70,6 +74,15 @@ public record ScanProperties(Worker worker, Tools tools, Checkout checkout) {
             gitleaksConfig = orDefault(gitleaksConfig, "/opt/saytu/rules/gitleaks/gitleaks.toml");
             trivyDbRepository = trivyDbRepository == null || trivyDbRepository.isBlank() ? null : trivyDbRepository.strip();
             trivyDbUpdateInterval = trivyDbUpdateInterval == null ? Duration.ofHours(12) : trivyDbUpdateInterval;
+        }
+
+        /** Java launcher for Checkstyle and PMD: the worker's own runtime. */
+        public Path java() {
+            return Path.of(System.getProperty("java.home"), "bin", "java");
+        }
+
+        public Path checkstyleConfig() {
+            return Path.of("/opt/saytu/rules/checkstyle/saytu-checks.xml");
         }
     }
 

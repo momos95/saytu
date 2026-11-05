@@ -8,6 +8,7 @@ import com.saytu.core.scan.CommandSpec;
 import com.saytu.core.scan.ScanContext;
 import com.saytu.core.scan.ScannerAdapter;
 import com.saytu.git.json.JsonNode;
+import com.saytu.scan.lang.SourceFilters;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -34,9 +35,17 @@ import java.util.stream.Stream;
  */
 public final class OpengrepAdapter implements ScannerAdapter {
 
-    static final List<String> DEFAULT_EXCLUDES = List.of(
-            "node_modules", "bower_components", "vendor", "third_party", "dist", "build", "target", "out",
-            ".venv", "venv", "__pycache__", "*.min.js", "*.bundle.js", "*.map");
+    static final List<String> DEFAULT_EXCLUDES = defaultExcludes();
+
+    private static List<String> defaultExcludes() {
+        List<String> excludes = new ArrayList<>(new java.util.TreeSet<>(SourceFilters.EXCLUDED_DIRECTORIES));
+        for (String suffix : SourceFilters.GENERATED_SUFFIXES) {
+            if (!suffix.equals(".d.ts")) {
+                excludes.add("*" + suffix);
+            }
+        }
+        return List.copyOf(excludes);
+    }
 
     private final Path executable;
     private final List<Path> ruleRoots;

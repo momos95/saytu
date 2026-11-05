@@ -1,5 +1,8 @@
-import { describeExecution, elapsed, executionTone, formatBytes, formatDuration, isActive, location, progress, scopeLabel } from './audits.logic';
-import { ScanRun, ScannerExecution } from './audits.model';
+import {
+  describeExecution, elapsed, executionTone, formatBytes, formatDuration, formatScore, isActive, location, progress, scopeLabel,
+  scoreTitle, scoreTone, translateReason,
+} from './audits.logic';
+import { ScanRun, ScannerExecution, ScoreView } from './audits.model';
 
 function run(over: Partial<ScanRun>): ScanRun {
   return { id: 'r', triggerType: 'MANUAL', requestedBy: 'awa', status: 'RUNNING', totalJobs: 4, finishedJobs: 1,
@@ -27,7 +30,13 @@ describe('audits logic', () => {
     expect(describeExecution(exec({ status: 'FAILED', findingsCount: 2 }))).toContain('incomplète');
     expect(describeExecution(exec({ status: 'TIMED_OUT', findingsCount: 0 }))).toContain('inconnus');
     expect(describeExecution(exec({ status: 'SKIPPED', scanner: 'pmd', errorMessage: 'not integrated in this version' })))
-      .toBe('PMD : non exécuté (not integrated in this version)');
+      .toBe('PMD : non exécuté (non intégré dans cette version)');
+    expect(describeExecution(exec({ status: 'NOT_APPLICABLE', scanner: 'phpcs', findingsCount: 0, errorMessage: 'no PHP file' })))
+      .toBe('PHP_CodeSniffer : rien à analyser (aucun fichier PHP)');
+    expect(describeExecution(exec({ status: 'NOT_APPLICABLE', scanner: 'cppcheck', findingsCount: 0, errorMessage: 'no C / C++ file' })))
+      .toBe('Cppcheck : rien à analyser (aucun fichier C / C++)');
+    expect(describeExecution(exec({ status: 'SKIPPED', scanner: 'eslint', errorMessage: 'disabled in the scanner settings' })))
+      .toBe('ESLint : non exécuté (désactivé dans les réglages)');
     expect(executionTone('TIMED_OUT')).toBe('warn');
     expect(executionTone('NOT_APPLICABLE')).toBe('muted');
   });
@@ -44,5 +53,24 @@ describe('audits logic', () => {
     expect(location({ filePath: 'src/A.java', startLine: 19, packageName: null, packageVersion: null })).toBe('src/A.java:19');
     expect(location({ filePath: 'package-lock.json', startLine: null, packageName: 'lodash', packageVersion: '4.17.15' }))
       .toBe('lodash@4.17.15 — package-lock.json');
+  });
+
+  it('translates the fixed reasons and keeps the others', () => {
+    expect(translateReason(null)).toBe('');
+    expect(translateReason('job cancelled')).toBe('audit annulé');
+    expect(translateReason('no SQL file')).toBe('aucun fichier SQL');
+    expect(translateReason('java not found')).toBe('java not found');
+  });
+
+  it('never shows a missing score as a good one', () => {
+    const score: ScoreView = { security: null, quality: 91.6, global: null, coverage: 35, reliability: 'INSUFFICIENT',
+      formulaVersion: '1', details: {}, computedAt: '2026-11-05T10:00:00Z' };
+    expect(formatScore(score.security)).toBe('—');
+    expect(formatScore(score.quality)).toBe('92');
+    expect(scoreTone(null)).toBe('none');
+    expect(scoreTone(85)).toBe('good');
+    expect(scoreTone(65)).toBe('fair');
+    expect(scoreTone(40)).toBe('poor');
+    expect(scoreTitle(score)).toBe('Couverture 35 % — couverture insuffisante (formule 1)');
   });
 });

@@ -1,3 +1,4 @@
+import { languageLabel } from './sources.model';
 import { branchProblem, discoveryMessage, filterTree, orderTree, parseBranchList } from './sources.logic';
 import { Namespace } from './sources.model';
 
@@ -57,5 +58,12 @@ describe('sources.logic', () => {
     expect(discoveryMessage({ ...base, status: 'OK' })).toContain('40 trouvé(s)');
     expect(discoveryMessage({ ...base, status: 'RATE_LIMITED', retryAfterSeconds: 60 })).toContain('dans 60 s');
     expect(discoveryMessage({ ...base, status: 'UNREACHABLE', message: 'Timed out' })).toContain('Timed out');
+  });
+
+  it('labels the detected languages', () => {
+    expect(languageLabel('cpp')).toBe('C++');
+    expect(languageLabel('csharp')).toBe('C#');
+    expect(languageLabel('typescript')).toBe('TypeScript');
+    expect(languageLabel('unknown-lang')).toBe('unknown-lang');
   });
 });

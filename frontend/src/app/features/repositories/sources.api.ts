@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AppConfigService } from '../../core/config/app-config';
+import { ScoreSummary } from '../audits/audits.model';
 import {
   BranchMode,
   DiscoveryResult,
@@ -83,13 +84,19 @@ export class SourcesApi {
     return this.http.get<ScanTargetSummary>(this.url('/scan-targets/summary'));
   }
 
+  /** Latest scores: global, per namespace and per repository (weakest audited branch). */
+  scores(): Observable<ScoreSummary> {
+    return this.http.get<ScoreSummary>(this.url('/scores'));
+  }
+
   scanners(): Observable<Scanner[]> {
     return this.http.get<Scanner[]>(this.url('/scanners'));
   }
 
-  updateScanner(s: Pick<Scanner, 'id' | 'enabled' | 'timeoutSeconds' | 'cpuSeconds' | 'memoryMb'>): Observable<Scanner> {
+  updateScanner(s: Pick<Scanner, 'id' | 'enabled' | 'timeoutSeconds' | 'cpuSeconds' | 'memoryMb' | 'settings'>): Observable<Scanner> {
     return this.http.put<Scanner>(this.url(`/scanners/${this.id(s.id)}`), {
       enabled: s.enabled, timeoutSeconds: s.timeoutSeconds, cpuSeconds: s.cpuSeconds, memoryMb: s.memoryMb,
+      settings: s.settings ?? {},
     });
   }
 }

@@ -39,7 +39,7 @@ final class ScanSql {
     static final String RUN_JOBS = """
             SELECT j.id, j.repository_id, s.full_name, j.branch, j.commit_sha, j.status, j.attempt, j.queued_at,
                    j.started_at, j.finished_at, j.error_message, j.checkout_bytes, j.findings_count, j.new_findings,
-                   j.resolved_findings
+                   j.resolved_findings, j.languages::text AS languages
             FROM scan_job j JOIN source_repository s ON s.id = j.repository_id
             WHERE j.scan_run_id = :runId
             ORDER BY s.full_name, j.branch""";
@@ -200,7 +200,8 @@ final class ScanSql {
             UPDATE scan_job
             SET status = :status, commit_sha = :commitSha, error_message = :errorMessage, finished_at = now(),
                 locked_by = NULL, lease_expires_at = NULL, checkout_bytes = :checkoutBytes, checkout_files = :checkoutFiles,
-                findings_count = :findingsCount, new_findings = :newFindings, resolved_findings = :resolvedFindings
+                findings_count = :findingsCount, new_findings = :newFindings, resolved_findings = :resolvedFindings,
+                languages = CAST(:languages AS jsonb)
             WHERE id = :jobId""";
 
     static final String RECORD_BRANCH_SCAN = """

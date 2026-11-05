@@ -111,14 +111,15 @@ run("INSERT_OCCURRENCE", {"findingId": r1[0][0], "executionId": ex_og, "jobId": 
                           "severity": "HIGH", "filePath": "x", "startLine": 1, "endLine": 1})
 check(q(f"SELECT count(*) FROM finding_occurrence WHERE finding_id = '{r1[0][0]}'") == [["1"]], "duplicate occurrence ignored")
 run("FINISH_JOB", {"jobId": job_id, "status": "PARTIAL", "commitSha": "a" * 40, "errorMessage": None, "checkoutBytes": 1000,
-                   "checkoutFiles": 10, "findingsCount": 3, "newFindings": 3, "resolvedFindings": 0})
+                   "checkoutFiles": 10, "findingsCount": 3, "newFindings": 3, "resolvedFindings": 0,
+                   "languages": '{"java": {"files": 2, "bytes": 70000}, "typescript": {"files": 1, "bytes": 1000}}'})
 run("RECORD_BRANCH_SCAN", {"commitSha": "a" * 40, "repositoryId": repo, "branch": "main"})
 run("COMPLETE_RUN", {"runId": run_id})
 check(q(f"SELECT status FROM scan_run WHERE id = '{run_id}'") == [["RUNNING"]], "run stays RUNNING while a job is queued")
 
 job2 = run("CLAIM_JOB", {"workerId": "w1", "leaseSeconds": 300})[0][0][0]
 run("FINISH_JOB", {"jobId": job2, "status": "SUCCEEDED", "commitSha": "b" * 40, "errorMessage": None, "checkoutBytes": None,
-                   "checkoutFiles": None, "findingsCount": 0, "newFindings": 0, "resolvedFindings": 0})
+                   "checkoutFiles": None, "findingsCount": 0, "newFindings": 0, "resolvedFindings": 0, "languages": "{}"})
 run("COMPLETE_RUN", {"runId": run_id})
 check(q(f"SELECT status, finished_at IS NOT NULL FROM scan_run WHERE id = '{run_id}'") == [["PARTIAL", "t"]],
       "run PARTIAL when one job is PARTIAL and the other SUCCEEDED")
@@ -169,7 +170,9 @@ check(len(runs) == 3, "runs listed")
 check(run("COUNT_RUNS")[0] == [["3"]], "runs counted")
 got = run("GET_RUN", {"runId": run_id})[0][0]
 check(got[3] == "PARTIAL" and got[13] == "2" and got[14] == "1" and got[15] == "3", "run detail with job counters and new findings")
-check(len(run("RUN_JOBS", {"runId": run_id})[0]) == 2, "run jobs")
+jobs_rows = run("RUN_JOBS", {"runId": run_id})[0]
+check(len(jobs_rows) == 2, "run jobs")
+check(any('"java"' in r[-1] for r in jobs_rows), "job languages returned")
 check(len(run("RUN_EXECUTIONS", {"runId": run_id})[0]) == 2, "run executions")
 
 print("== cancellation and crash recovery")
@@ -202,6 +205,42 @@ run("CLAIM_UNPLANNED_RUN")
 run("FINISH_PLANNING", {"runId": empty, "notes": "[]", "errorMessage": "nothing to scan"})
 run("COMPLETE_RUN", {"runId": empty})
 check(q(f"SELECT status, error_message FROM scan_run WHERE id = '{empty}'") == [["FAILED", "nothing to scan"]], "run without job FAILED with its reason")
+
+print("== scores")
+formula = run("FORMULA")[0]
+check(formula and '"version": "v1"' in formula[0][0], "scoring formula v1 seeded by V5")
+run("UPDATE_FORMULA", {"value": '{"version": "v1-custom", "securityScale": 40}', "updatedBy": "admin"})
+check('"v1-custom"' in run("FORMULA")[0][0][0], "formula updated")
+counts = run("OPEN_COUNTS", {"repositoryId": repo, "branch": "main"})[0]
+check(sorted(counts) == [["SECURITY", "MEDIUM", "2"]], "open counts: 2 OPEN, the FALSE_POSITIVE excluded: " + str(counts))
+snap = {"namespaceId": None, "repositoryId": repo, "branch": "main", "scanJobId": job_id, "security": 81.87,
+        "quality": 90.5, "global": 85.32, "coverage": 79.0, "reliability": "MEDIUM", "formulaVersion": "v1",
+        "details": '{"codeBytes": 70000, "missingSecurityScanners": ["trivy"]}'}
+run("INSERT_SNAPSHOT", dict(snap, scopeType="BRANCH"))
+run("INSERT_SNAPSHOT", dict(snap, scopeType="BRANCH", branch="develop", scanJobId=None, security=None, quality=None, **{"global": None}, coverage=20, reliability="INSUFFICIENT"))
+latest = run("LATEST_BRANCH_SNAPSHOTS", {"repositoryId": repo})[0]
+check(len(latest) == 2 and latest[1][0] == "main" and latest[1][1] == "81.87", "latest snapshot per branch")
+run("INSERT_SNAPSHOT", dict(snap, scopeType="REPOSITORY", branch=None, scanJobId=None))
+run("INSERT_SNAPSHOT", dict(snap, scopeType="NAMESPACE", namespaceId=ns, repositoryId=None, branch=None, scanJobId=None))
+run("INSERT_SNAPSHOT", dict(snap, scopeType="GLOBAL", repositoryId=None, branch=None, scanJobId=None))
+try:
+    run("INSERT_SNAPSHOT", dict(snap, scopeType="GLOBAL", branch=None, scanJobId=None))
+    check(False, "GLOBAL snapshot with a repository refused")
+except RuntimeError:
+    check(True, "GLOBAL snapshot with a repository refused (ck_score_scope)")
+check(len(run("LATEST_REPOSITORY_SNAPSHOTS", {"namespaceId": None})[0]) == 1, "latest repository snapshots")
+check(len(run("LATEST_REPOSITORY_SNAPSHOTS", {"namespaceId": ns})[0]) == 1, "filtered by organisation")
+check(run("LATEST_NAMESPACE_SNAPSHOTS")[0][0][1] == "acme", "latest organisation snapshot")
+check(len(run("LATEST_GLOBAL_SNAPSHOT")[0]) == 1, "latest global snapshot")
+check(run("REPOSITORY_NAMESPACE", {"repositoryId": repo})[0] == [[ns]], "namespace of a repository")
+check(len(run("RUN_JOB_SCORES", {"runId": run_id})[0]) == 1, "branch score attached to the job")
+run("RECORD_LANGUAGES", {"labels": '["java", "typescript"]', "repositoryId": repo})
+check(q(f"SELECT languages::text FROM source_repository WHERE id = '{repo}'") == [['["java", "typescript"]']], "repository labels stored")
+try:
+    run("RECORD_LANGUAGES", {"labels": '{"java": 1}', "repositoryId": repo})
+    check(False, "labels must be an array")
+except RuntimeError:
+    check(True, "labels must be a JSON array (ck_repository_languages)")
 
 print(f"== {'all scan SQL checks passed' if failures == 0 else str(failures) + ' FAILED'}")
 sys.exit(1 if failures else 0)

@@ -1,5 +1,7 @@
 package com.saytu.scan;
 
+import com.saytu.core.domain.Language;
+import com.saytu.core.domain.LanguageProfile;
 import com.saytu.core.domain.ScannerExecutionStatus;
 import com.saytu.core.domain.ScannerId;
 import com.saytu.core.finding.NormalizedFinding;
@@ -11,6 +13,7 @@ import com.saytu.scan.git.CheckoutException;
 import com.saytu.scan.git.CheckoutRequest;
 import com.saytu.scan.git.CheckoutResult;
 import com.saytu.scan.git.GitCheckout;
+import com.saytu.scan.lang.LanguageDetector;
 import com.saytu.scan.sandbox.ProcessSandbox;
 import com.saytu.scan.sandbox.SandboxResult;
 
@@ -70,19 +73,20 @@ public final class ScanJobRunner {
             try {
                 source = checkout.checkout(request, jobDir);
             } catch (CheckoutException e) {
-                return new JobOutcome(null, 0, 0, List.of(), e.kind() + ": " + e.getMessage());
+                return new JobOutcome(null, 0, 0, null, List.of(), e.kind() + ": " + e.getMessage());
             }
+            LanguageProfile languages = new LanguageDetector().detect(source.sourceDir());
             List<ScannerOutcome> outcomes = new ArrayList<>();
             for (ScannerPlan plan : plans) {
                 if (cancelled.getAsBoolean()) {
                     outcomes.add(ScannerOutcome.notRun(plan.adapter().id(), ScannerExecutionStatus.SKIPPED, "job cancelled"));
                     continue;
                 }
-                outcomes.add(runScanner(jobId, jobDir, source, plan));
+                outcomes.add(runScanner(jobId, jobDir, source, languages, plan));
             }
-            return new JobOutcome(source.commitSha(), source.totalBytes(), source.fileCount(), outcomes, null);
+            return new JobOutcome(source.commitSha(), source.totalBytes(), source.fileCount(), languages, outcomes, null);
         } catch (IOException e) {
-            return new JobOutcome(null, 0, 0, List.of(), "FAILED: cannot prepare the job directory");
+            return new JobOutcome(null, 0, 0, null, List.of(), "FAILED: cannot prepare the job directory");
         } finally {
             try {
                 GitCheckout.deleteRecursively(jobDir);
@@ -92,12 +96,17 @@ public final class ScanJobRunner {
         }
     }
 
-    private ScannerOutcome runScanner(UUID jobId, Path jobDir, CheckoutResult source, ScannerPlan plan)
-            throws InterruptedException {
+    private ScannerOutcome runScanner(UUID jobId, Path jobDir, CheckoutResult source, LanguageProfile languages,
+                                      ScannerPlan plan) throws InterruptedException {
         ScannerAdapter adapter = plan.adapter();
         ScannerId id = adapter.id();
         if (!plan.enabled()) {
             return ScannerOutcome.notRun(id, ScannerExecutionStatus.SKIPPED, "disabled in the scanner settings");
+        }
+        if (!adapter.languages().isEmpty() && !languages.containsAny(adapter.languages())) {
+            String names = adapter.languages().stream().sorted().map(Language::label)
+                    .reduce((a, b) -> a + " / " + b).orElse("");
+            return ScannerOutcome.notRun(id, ScannerExecutionStatus.NOT_APPLICABLE, "no " + names + " file");
         }
         try {
             if (!adapter.isApplicable(source.sourceDir())) {

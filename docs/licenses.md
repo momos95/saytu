@@ -37,16 +37,27 @@ française d'Angular (`@angular/common/locales/fr`) fait partie d'Angular (MIT).
 
 Les binaires sont téléchargés depuis les publications officielles GitHub au moment de la construction
 de l'image `worker`, à une **version figée et vérifiée par SHA-256** (`backend/Dockerfile`, étape
-`tools`). Ils sont exécutés comme programmes séparés (aucune liaison avec le code SAYTU).
+`tools`). Les outils de la phase 5 viennent de Maven Central (Checkstyle, PMD : versions figées dans
+`backend/tools/*.pom.xml`), de npm (`scanners/eslint/package.json`, `npm install --ignore-scripts`),
+de PyPI (SQLFluff), d'un clone Git vérifié par commit (PHP_CodeSniffer) et d'Ubuntu (Cppcheck, PHP). Ils sont exécutés comme programmes séparés (aucune liaison avec le code SAYTU).
 
-| Outil | Version (phase 4) | Licence du moteur | Données / règles | Statut |
+| Outil | Version | Licence du moteur | Données / règles | Statut |
 |---|---|---|---|---|
 | **Opengrep** | 1.33.1 | LGPL-2.1 (fork de Semgrep CE ; fichier `LICENSE` du dépôt opengrep/opengrep vérifié) | voir « Règles Opengrep » ci-dessous | ✅ intégré |
 | **Trivy** | 0.76.1 | Apache-2.0 | La base de vulnérabilités (Trivy DB) agrège des avis de sources multiples (NVD, GitHub Advisory Database, distributions…), chacune avec ses conditions. Elle **n'est pas incluse dans l'image** : le worker la télécharge (avis publics uniquement, aucun code transmis) ou l'exploitant la copie (site isolé). Les contrôles de configuration (Dockerfile, Kubernetes, Terraform…) sont ceux embarqués dans le binaire (Apache-2.0). | ✅ intégré |
 | **Gitleaks** | 8.30.1 | MIT | configuration par défaut de la même version copiée dans `scanners/gitleaks/gitleaks.toml` avec son `LICENSE` (MIT) | ✅ intégré |
-| **PMD** | — | licence de type BSD | règles intégrées (même licence) | phase 5 |
-| **Checkstyle** | — | LGPL-2.1+ | configurations `sun_checks.xml` / `google_checks.xml` fournies avec l'outil | phase 5 |
-| **OWASP Dependency-Check** (optionnel) | — | Apache-2.0 | NVD (domaine public) ; clé d'API NVD gratuite recommandée | phase 5 ; désactiver les analyseurs qui interrogent des services tiers |
+| **PMD** (Java) | 7.28.0 | licence de type BSD (BSD-4-clause modifiée, fichier `LICENSE` de pmd/pmd) ; dépendances Apache-2.0 / MIT (picocli, ASM, Saxon-HE MPL-2.0) | jeu `rulesets/java/quickstart.xml` livré avec PMD (même licence) | ✅ phase 5 — `pmd-designer` (JavaFX) exclu |
+| **Checkstyle** (Java) | 14.3.0 | LGPL-2.1-or-later ; dépendances Apache-2.0 (Guava, commons), ANTLR BSD, Saxon-HE MPL-2.0 | `scanners/checkstyle/saytu-checks.xml` écrit pour SAYTU (Apache-2.0) | ✅ phase 5 |
+| **ESLint** (JS/TS) | 9.39.5 | MIT | configuration SAYTU `scanners/eslint/eslint.config.mjs` (Apache-2.0) | ✅ phase 5 |
+| typescript-eslint | 8.69.0 | MIT (parser BSD-2-Clause) | règles `recommended` | ✅ phase 5 |
+| eslint-plugin-security | 3.0.1 | Apache-2.0 | règles `recommended` | ✅ phase 5 |
+| `globals`, `typescript` (dépendances d'ESLint) | 16.4.0, 5.9.3 | MIT, Apache-2.0 | — | ✅ phase 5 |
+| Node.js (exécution d'ESLint) | 22.23.3 (image `node:22-bookworm-slim`) | MIT (+ licences tierces de Node) | — | ✅ phase 5 — binaire `node` seul copié dans l'image |
+| **PHP_CodeSniffer** (PHP) | 4.0.2 (commit `74ee2d4` vérifié) | BSD-3-Clause | normes PSR12/PSR2/PSR1/PEAR/Squiz/Zend fournies avec l'outil | ✅ phase 5 ; `php-cli`, `php-xml` (PHP License 3.01) depuis Ubuntu |
+| **Cppcheck** (C/C++) | 2.13.0 (paquet Ubuntu 24.04) | GPL-3.0-or-later | vérifications intégrées | ✅ phase 5 — programme séparé, exécuté et non lié : la GPL n'impose rien au code SAYTU ; le code source est celui du paquet Ubuntu |
+| **SQLFluff** (SQL) | 4.4.0 (venv Python ; version figée, dépendances résolues par pip à la construction) | MIT ; dépendances MIT/BSD/Apache-2.0 | règles intégrées | ✅ phase 5 |
+| C# | — | — | — | ❌ aucun analyseur de qualité libre utilisable sans compiler le projet (les analyseurs Roslyn exigent `dotnet build`, interdit : aucun script de build du dépôt n'est exécuté). La qualité C# est affichée « non couverte ». |
+| **OWASP Dependency-Check** (optionnel) | — | Apache-2.0 | NVD (domaine public) ; clé d'API NVD gratuite recommandée | ❌ non intégré : Trivy couvre les dépendances ; affiché « non intégré » |
 | git, util-linux (`prlimit`) | paquets Ubuntu 24.04 | GPL-2.0 | — | programmes du système de l'image `worker` |
 
 ### Règles Opengrep (décision du 5 novembre 2026)

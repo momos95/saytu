@@ -174,8 +174,7 @@ public class ScanWorker {
             if (!notIntegrated.isEmpty()) {
                 List<ScannerOutcome> all = new ArrayList<>(outcome.scanners());
                 all.addAll(notIntegrated);
-                outcome = new JobOutcome(outcome.commitSha(), outcome.checkoutBytes(), outcome.checkoutFiles(), all,
-                        outcome.error());
+                outcome = outcome.withScanners(all);
             }
             ScanStatus status = outcome.status();
             boolean cancelled = outcome.scanners().stream().anyMatch(s -> "job cancelled".equals(s.errorMessage()));

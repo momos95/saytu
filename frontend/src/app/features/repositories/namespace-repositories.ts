@@ -1,11 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { errorMessage } from '../connections/connections.api';
+import { LanguageChips, ScoreBadges } from '../../shared/score-badges';
+import { ScoreView } from '../audits/audits.model';
 import { SourcesApi } from './sources.api';
 import { Namespace, PageView, Repository } from './sources.model';
 
 /** Paginated, searchable repositories of one namespace, with selection checkboxes (ADMIN). */
 @Component({
   selector: 'saytu-namespace-repositories',
+  imports: [LanguageChips, ScoreBadges],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="toolbar">
@@ -40,7 +43,11 @@ import { Namespace, PageView, Repository } from './sources.model';
                 @if (r.visibility === 'PUBLIC') { <span class="tag">public</span> }
                 @if (r.archived) { <span class="tag warn">archivé (ignoré)</span> }
                 @if (r.scanTarget) { <span class="tag ok">audité</span> }
+                <saytu-language-chips [languages]="r.languages" />
               </span>
+              @if (scores()[r.id]; as sc) {
+                <span class="score-line"><saytu-score-badges [score]="sc" /></span>
+              }
             </li>
           }
         </ul>
@@ -64,7 +71,8 @@ import { Namespace, PageView, Repository } from './sources.model';
                 border-top: 1px solid var(--saytu-border); }
     label { display: flex; gap: 8px; align-items: center; min-width: 0; }
     .name { overflow-wrap: anywhere; }
-    .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tags { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+    .score-line { flex-basis: 100%; padding-left: 26px; }
     .tag { font-size: .72rem; padding: .05rem .45rem; border-radius: 999px; background: var(--saytu-hover); }
     .tag.ok { background: var(--saytu-accent-soft); color: var(--saytu-accent); }
     .tag.warn { color: var(--saytu-medium); }
@@ -81,6 +89,8 @@ export class NamespaceRepositories {
 
   readonly namespace = input.required<Namespace>();
   readonly canEdit = input(false);
+  /** Latest score per repository id (weakest audited branch). */
+  readonly scores = input<Record<string, ScoreView>>({});
   /** Emitted after a selection change, so that the parent refreshes its counters. */
   readonly changed = output<void>();
 

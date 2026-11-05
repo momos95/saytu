@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { ConnectionsApi, errorMessage } from '../connections/connections.api';
 import { GitConnection } from '../connections/connections.model';
+import { ScoreBadges } from '../../shared/score-badges';
+import { ScoreView } from '../audits/audits.model';
 import { NamespaceRepositories } from './namespace-repositories';
 import { SourcesApi } from './sources.api';
 import { discoveryMessage, filterTree, orderTree } from './sources.logic';
@@ -15,7 +17,7 @@ import { KIND_LABELS, Namespace } from './sources.model';
  */
 @Component({
   selector: 'saytu-repositories-page',
-  imports: [DatePipe, NamespaceRepositories],
+  imports: [DatePipe, NamespaceRepositories, ScoreBadges],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="page-header">
@@ -70,6 +72,7 @@ import { KIND_LABELS, Namespace } from './sources.model';
                   <strong>{{ n.fullPath }}</strong>
                   <span class="badge">{{ kindLabel(n) }}</span>
                   @if (n.removed) { <span class="badge warn">n’existe plus sur la plateforme</span> }
+                  @if (namespaceScores()[n.id]; as sc) { <saytu-score-badges [score]="sc" /> }
                   @if (n.addedManually) { <span class="badge">ajouté par nom</span> }
                 </div>
                 <span class="muted counts">
@@ -102,7 +105,7 @@ import { KIND_LABELS, Namespace } from './sources.model';
                   {{ n.repositoriesSyncStatus === 'OK' ? '' : '— ' + (n.repositoriesSyncMessage ?? n.repositoriesSyncStatus) }}</p>
               }
               @if (expanded().has(n.id)) {
-                <saytu-namespace-repositories [namespace]="n" [canEdit]="isAdmin()" (changed)="reloadNamespaces()" />
+                <saytu-namespace-repositories [namespace]="n" [canEdit]="isAdmin()" [scores]="repositoryScores()" (changed)="reloadNamespaces()" />
               }
             </li>
           }
@@ -160,9 +163,12 @@ export class RepositoriesPage implements OnInit {
   readonly message = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly isAdmin = computed(() => this.auth.hasRole('ADMIN'));
+  readonly repositoryScores = signal<Record<string, ScoreView>>({});
+  readonly namespaceScores = signal<Record<string, ScoreView>>({});
   readonly rows = computed(() => filterTree(orderTree(this.namespaces()), this.filter()));
 
   ngOnInit(): void {
+    this.loadScores();
     this.connectionsApi.list().subscribe({
       next: list => {
         this.connections.set(list);
@@ -251,6 +257,20 @@ export class RepositoriesPage implements OnInit {
       error: e => {
         this.busy.set(false);
         this.error.set(errorMessage(e));
+      },
+    });
+  }
+
+  /** Scores are informative: a failure here never blocks the page. */
+  loadScores(): void {
+    this.api.scores().subscribe({
+      next: summary => {
+        this.repositoryScores.set(Object.fromEntries(summary.repositories.map(r => [r.repositoryId, r.score])));
+        this.namespaceScores.set(Object.fromEntries(summary.namespaces.map(n => [n.namespaceId, n.score])));
+      },
+      error: () => {
+        this.repositoryScores.set({});
+        this.namespaceScores.set({});
       },
     });
   }

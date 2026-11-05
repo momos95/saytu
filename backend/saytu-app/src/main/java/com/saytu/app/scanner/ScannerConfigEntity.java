@@ -76,6 +76,11 @@ public class ScannerConfigEntity {
         this.updatedAt = at;
     }
 
+    /** Replaces the tool options (validated by {@link ScannerSettings}). */
+    public void replaceSettings(Map<String, String> newSettings) {
+        this.settings = new HashMap<>(newSettings);
+    }
+
     public String getScannerId() {
         return scannerId;
     }

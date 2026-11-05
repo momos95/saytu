@@ -4,10 +4,11 @@ Plateforme **on-premise** et open source d'audit automatisé de la sécurité et
 code, multi-organisations et multi-dépôts (GitLab, GitHub, Bitbucket, dépôts locaux).
 Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre infrastructure.
 
-> **État : phase 4 / 8** — connexion via Keycloak, connexions Git chiffrées, découverte des
-> organisations, dépôts et branches, périmètre d'audit, et **audits réels** : clone sécurisé puis
-> Opengrep (SAST), Trivy (dépendances, configuration) et Gitleaks (secrets) dans un worker isolé.
-> Scores, PMD/Checkstyle et tableau de bord arrivent en phases 5-6. Détail : [docs/roadmap.md](docs/roadmap.md).
+> **État : phase 5 / 8** — connexion via Keycloak, connexions Git chiffrées, découverte des
+> organisations, dépôts et branches, et **audits réels** dans un worker isolé : Opengrep (SAST),
+> Trivy (dépendances, configuration), Gitleaks (secrets), puis l'outil de qualité adapté à chaque
+> langage détecté (Checkstyle + PMD pour Java, ESLint pour TS/JS, PHP_CodeSniffer, Cppcheck pour C/C++,
+> SQLFluff). Scores sécurité / qualité / global avec couverture. Tableau de bord et rapports : phase 6. Détail : [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
 
@@ -19,6 +20,7 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 | [docs/licenses.md](docs/licenses.md) | licences des composants et des règles |
 | [docs/git-connections.md](docs/git-connections.md) | créer les tokens GitLab, GitHub, Bitbucket ; lire un résultat de test |
 | [docs/security.md](docs/security.md) | mesures de sécurité et risques résiduels |
+| [docs/scoring.md](docs/scoring.md) | formule des scores, couverture, fiabilité, outils par langage |
 | [docs/operations.md](docs/operations.md) | exploitation des audits : base Trivy (en ligne / hors ligne), packs de règles, reprises |
 | [docs/install-windows.md](docs/install-windows.md) | installation sur Windows avec WSL 2 et Docker Engine |
 | [docs/roadmap.md](docs/roadmap.md) | phases et état d'avancement |
@@ -88,7 +90,7 @@ backend/saytu-core   domaine et ports, sans framework (empreintes, dédoublonnag
 backend/saytu-git    connecteurs GitLab / GitHub / Bitbucket / local, JDK seul
 backend/saytu-scan   moteur d'analyse, JDK seul : sandbox, clone sécurisé, adaptateurs Opengrep / Trivy / Gitleaks
 backend/saytu-app    application Spring Boot (API, et worker avec SAYTU_WORKER_ENABLED=true)
-scanners/          règles Opengrep (SAYTU, Aikido), configuration Gitleaks
+scanners/          règles Opengrep (SAYTU, Aikido), configurations Gitleaks, Checkstyle, ESLint
 frontend/          Angular 20
 infra/             realm Keycloak
 scripts/           secrets, vérification du schéma et du SQL, import de packs de règles

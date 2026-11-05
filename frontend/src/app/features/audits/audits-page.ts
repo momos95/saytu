@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, injec
 import { AuthService } from '../../core/auth/auth.service';
 import { errorMessage } from '../connections/connections.api';
 import { PageView } from '../repositories/sources.model';
+import { LanguageChips, ScoreBadges } from '../../shared/score-badges';
 import { AuditsApi } from './audits.api';
 import {
   RUN_STATUS_LABELS,
@@ -24,7 +25,7 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
 /** Page 6: launch audits, follow their progress per branch and scanner, look at the results. */
 @Component({
   selector: 'saytu-audits-page',
-  imports: [DatePipe],
+  imports: [DatePipe, LanguageChips, ScoreBadges],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="page-header">
@@ -111,6 +112,12 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
                 {{ j.findingsCount }} résultat(s), {{ j.newFindings }} nouveau(x), {{ j.resolvedFindings }} corrigé(s)
                 @if (j.attempt > 1) { · tentative {{ j.attempt }} }
               </p>
+              @if (j.languages.length || j.score) {
+                <div class="row lang-score">
+                  <saytu-language-chips [languages]="j.languages" />
+                  @if (j.score) { <saytu-score-badges [score]="j.score" /> }
+                </div>
+              }
               @if (j.errorMessage) { <p class="error small">{{ j.errorMessage }}</p> }
               <ul class="executions">
                 @for (e of j.scanners; track e.scanner) {
@@ -183,6 +190,7 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
     .branch { font-weight: 400; color: var(--saytu-muted); margin-left: 6px; }
     .meta { margin: 0; font-size: .85rem; }
     .executions { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+    .lang-score { gap: 10px; flex-wrap: wrap; justify-content: flex-start; margin: 4px 0 8px; }
     .executions li { font-size: .8rem; padding: .2rem .55rem; border-radius: 6px; border: 1px solid var(--saytu-border); }
     .executions li[data-tone="ok"] { border-color: var(--saytu-accent); }
     .executions li[data-tone="warn"] { border-color: var(--saytu-medium); color: var(--saytu-medium); }

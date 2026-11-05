@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Resolves the PMD command line with the Java language module for the worker image.
+     Not part of the SAYTU build: used by backend/Dockerfile, stage "jvmtools". -->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.saytu.tools</groupId>
+    <artifactId>pmd-runtime</artifactId>
+    <version>1</version>
+    <packaging>pom</packaging>
+    <properties>
+        <pmd.version>7.28.0</pmd.version>
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>net.sourceforge.pmd</groupId>
+            <artifactId>pmd-cli</artifactId>
+            <version>${pmd.version}</version>
+            <exclusions>
+                <!-- graphical rule designer: not used -->
+                <exclusion>
+                    <groupId>net.sourceforge.pmd</groupId>
+                    <artifactId>pmd-designer</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>net.sourceforge.pmd</groupId>
+            <artifactId>pmd-java</artifactId>
+            <version>${pmd.version}</version>
+        </dependency>
+    </dependencies>
+</project>

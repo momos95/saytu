@@ -47,7 +47,8 @@ public final class ScanViews {
     public record ScanJobView(UUID id, UUID repositoryId, String repositoryName, String branch, String commitSha,
                               String status, int attempt, Instant queuedAt, Instant startedAt, Instant finishedAt,
                               String errorMessage, Long checkoutBytes, int findingsCount, int newFindings,
-                              int resolvedFindings, List<ScannerExecutionView> scanners) {
+                              int resolvedFindings, List<ScannerExecutionView> scanners, List<String> languages,
+                              ScoreService.ScoreView score) {
     }
 
     /** Repository of the scope that produced no job, and why. */

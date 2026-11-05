@@ -17,7 +17,7 @@ $$;
 BEGIN;
 
 -- seed scanners present
-SELECT CASE WHEN count(*) = 6 THEN 'ok - 6 scanners seeded' ELSE 'FAIL' END FROM scanner_config;
+SELECT CASE WHEN count(*) = 10 THEN 'ok - 10 scanners seeded' ELSE 'FAIL' END FROM scanner_config;
 SELECT CASE WHEN NOT enabled THEN 'ok - dependency-check disabled by default' ELSE 'FAIL' END
 FROM scanner_config WHERE scanner_id = 'dependency-check';
 

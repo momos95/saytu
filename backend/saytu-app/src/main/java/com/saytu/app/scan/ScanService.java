@@ -11,6 +11,8 @@ import com.saytu.app.scan.ScanViews.ScanRunView;
 import com.saytu.app.scan.ScanViews.ScannerExecutionView;
 import com.saytu.app.source.ScanSourceService;
 import com.saytu.app.web.ResourceNotFoundException;
+import com.saytu.core.domain.Language;
+import com.saytu.core.domain.LanguageProfile;
 import com.saytu.git.json.JsonNode;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -40,11 +42,13 @@ public class ScanService {
     private final NamedParameterJdbcTemplate jdbc;
     private final ScanSourceService sources;
     private final AuditService audit;
+    private final ScoreService scores;
 
-    public ScanService(NamedParameterJdbcTemplate jdbc, ScanSourceService sources, AuditService audit) {
+    public ScanService(NamedParameterJdbcTemplate jdbc, ScanSourceService sources, AuditService audit, ScoreService scores) {
         this.jdbc = jdbc;
         this.sources = sources;
         this.audit = audit;
+        this.scores = scores;
     }
 
     @Transactional
@@ -105,6 +109,7 @@ public class ScanService {
                             JdbcRows.longOrNull(rs, "duration_ms"), rs.getInt("findings_count"),
                             rs.getString("error_message")));
         });
+        Map<UUID, ScoreService.ScoreView> jobScores = scores.runJobScores(runId);
         List<ScanJobView> jobs = jdbc.query(ScanSql.RUN_JOBS, p, (rs, i) -> {
             UUID jobId = JdbcRows.uuid(rs, "id");
             return new ScanJobView(jobId, JdbcRows.uuid(rs, "repository_id"), rs.getString("full_name"),
@@ -112,7 +117,8 @@ public class ScanService {
                     JdbcRows.instant(rs, "queued_at"), JdbcRows.instant(rs, "started_at"),
                     JdbcRows.instant(rs, "finished_at"), rs.getString("error_message"),
                     JdbcRows.longOrNull(rs, "checkout_bytes"), rs.getInt("findings_count"), rs.getInt("new_findings"),
-                    rs.getInt("resolved_findings"), executions.getOrDefault(jobId, List.of()));
+                    rs.getInt("resolved_findings"), executions.getOrDefault(jobId, List.of()),
+                    languageLabels(rs.getString("languages")), jobScores.get(jobId));
         });
         String notesJson = jdbc.queryForObject("SELECT planning_notes::text FROM scan_run WHERE id = :runId", p, String.class);
         return new ScanRunDetail(runs.getFirst(), jobs, parseNotes(notesJson));
@@ -132,6 +138,20 @@ public class ScanService {
         jdbc.update(ScanSql.COMPLETE_RUN, p);
         audit.record("SCAN_CANCELLED", "scan_run", runId.toString(), Map.of());
         return get(runId);
+    }
+
+    /** Labels (language keys, most present first) from a scan_job.languages document. */
+    static List<String> languageLabels(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        JsonNode root = JsonNode.parse(json);
+        Map<Language, LanguageProfile.Stats> stats = new java.util.EnumMap<>(Language.class);
+        for (String key : root.fieldNames()) {
+            Language.fromKey(key).ifPresent(l -> stats.put(l, new LanguageProfile.Stats(
+                    Math.max(0, root.get(key).get("files").asLong(0)), Math.max(0, root.get(key).get("bytes").asLong(0)))));
+        }
+        return new LanguageProfile(stats, 0).labels().stream().map(Language::key).toList();
     }
 
     static List<PlanningNote> parseNotes(String json) {

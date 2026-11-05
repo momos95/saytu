@@ -32,6 +32,21 @@ export interface ScannerExecution {
   errorMessage: string | null;
 }
 
+export type Reliability = 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT';
+
+/** A stored score (ScoreService.ScoreView). Null scores = coverage too low to give one. */
+export interface ScoreView {
+  security: number | null;
+  quality: number | null;
+  global: number | null;
+  /** 0..100 */
+  coverage: number;
+  reliability: Reliability;
+  formulaVersion: string;
+  details: Record<string, unknown>;
+  computedAt: string;
+}
+
 export interface ScanJob {
   id: string;
   repositoryId: string;
@@ -49,6 +64,9 @@ export interface ScanJob {
   newFindings: number;
   resolvedFindings: number;
   scanners: ScannerExecution[];
+  /** language keys detected on the analysed commit, most present first */
+  languages: string[];
+  score: ScoreView | null;
 }
 
 export interface PlanningNote {
@@ -92,4 +110,12 @@ export interface Finding {
 export interface FindingPage {
   page: { items: Finding[]; page: number; size: number; totalElements: number; totalPages: number };
   bySeverity: Record<Severity, number>;
+}
+
+/** GET /api/v1/scores (ScoreService.Summary). */
+export interface ScoreSummary {
+  global: ScoreView | null;
+  namespaces: { namespaceId: string; namespace: string; score: ScoreView }[];
+  repositories: { repositoryId: string; namespaceId: string; repository: string; score: ScoreView }[];
+  formula: Record<string, unknown>;
 }

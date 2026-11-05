@@ -38,14 +38,14 @@ public final class SourceViews {
                                  String namespacePath, String fullName, String name, String webUrl,
                                  String defaultBranch, Visibility visibility, boolean archived, boolean removed,
                                  boolean selected, boolean scanTarget, SourceRepositoryEntity.BranchMode branchMode,
-                                 List<String> branches, Instant lastActivityAt) {
+                                 List<String> branches, Instant lastActivityAt, List<String> languages) {
 
         static RepositoryView of(SourceRepositoryEntity r, List<String> branches) {
             GitNamespaceEntity ns = r.getNamespace();
             return new RepositoryView(r.getId(), r.getConnection().getId(), r.getConnection().getName(),
                     ns == null ? null : ns.getId(), ns == null ? null : ns.getFullPath(), r.getFullName(), r.getName(),
                     r.getWebUrl(), r.getDefaultBranch(), r.getVisibility(), r.isArchived(), r.isRemoved(),
-                    r.isSelected(), r.isScanTarget(), r.getBranchMode(), branches, r.getLastActivityAt());
+                    r.isSelected(), r.isScanTarget(), r.getBranchMode(), branches, r.getLastActivityAt(), r.getLanguages());
         }
     }
 

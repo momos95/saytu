@@ -108,7 +108,7 @@ ArchUnit, `ArchitectureTest`).
 | `app.scan` | runs, planification, file `SKIP LOCKED` + bail, worker, enregistrement des findings (JDBC, `ScanSql`), API `/scans` et `/findings` | ✅ phase 4 |
 | module `saytu-scan` (JDK seul) | `ProcessSandbox`, `GitCheckout`, adaptateurs Opengrep / Trivy / Gitleaks, `ScanJobRunner` | ✅ phase 4 |
 | `app.scanners.*` **[phases 4-5]** | adaptateurs `ScannerAdapter` | — |
-| `app.scoring` **[phase 5]** | calcul et snapshots de scores | — |
+| `app.scan` (`ScoreService`) | snapshots de scores ; calcul pur dans `saytu-core/scoring` | — |
 | `app.report` **[phase 6]** | HTML, PDF, JSON, SARIF | — |
 | `app.schedule`, `app.alert`, `app.remediation` **[phase 7]** | cron, webhooks, recommandations | — |
 
@@ -206,7 +206,7 @@ sequenceDiagram
   end
   W->>W: parse → NormalizedFinding → expurgation → empreinte → dédoublonnage
   W->>DB: UPSERT finding, INSERT finding_occurrence,<br/>OPEN→RESOLVED si non revu ET scanner exécuté
-  W->>DB: score_snapshot (branche, dépôt, namespace, global) [phase 5]
+  W->>DB: score_snapshot (branche, dépôt, namespace, global)
   W->>DB: webhook_delivery (outbox) si nouveaux CRITICAL [phase 7]
 ```
 
@@ -257,27 +257,14 @@ Chaque adaptateur produit des `NormalizedFinding`. L'empreinte (SHA-256, 64 hex)
 Fusion : sévérité la plus haute, union des CWE et références, première recommandation non vide ;
 chaque rapport d'origine est conservé (`finding_occurrence`).
 
-## 7. Scoring **[phase 5]** — proposition `v1`, configurable (`app_setting: scoring.formula`)
+## 7. Scoring — formule `v1`, configurable (`app_setting: scoring.formula`)
 
-Pour une branche, avec les findings **OPEN** uniquement :
-
-* poids de sévérité `w_sev` : CRITICAL 25, HIGH 10, MEDIUM 4, LOW 1, INFO 0 ;
-* poids de nature `w_type` : SECRET 1,2 — SECURITY 1,0 — DEPENDENCY 0,8 (exploitabilité non
-  prouvée) ; QUALITY alimente uniquement le score qualité ;
-* pénalité `P = Σ w_sev × w_type` ; **score = 100 × e^(−P / K)** (K = 50 sécurité, K = 80
-  qualité ; la pénalité qualité est rapportée à la taille du code en KLOC) ;
-* plafonds : au moins un CRITICAL ouvert ⇒ score sécurité ≤ 40 ; un secret ouvert ⇒ ≤ 60 ;
-* **global = 0,7 × sécurité + 0,3 × qualité**.
-
-**Couverture** = Σ poids des scanners `SUCCEEDED` / Σ poids des scanners attendus pour la
-catégorie (désactivés, échoués et expirés comptent au dénominateur ; `NOT_APPLICABLE` en est
-exclu). Fiabilité : `HIGH` ≥ 90 %, `MEDIUM` ≥ 60 %, `LOW` ≥ 30 %, `INSUFFICIENT` < 30 % ⇒ score
-non affiché (`NULL` en base), jamais 100.
-
-Agrégation : dépôt = branche par défaut (les autres branches restent consultables) ;
-namespace et global = moyenne des dépôts pondérée par la taille du code, accompagnée du pire
-score et de la couverture minimale. Chaque `score_snapshot` mémorise `formula_version` et le
-détail du calcul (`details` JSONB) pour être explicable et rejouable.
+La proposition de la phase 1 a été simplifiée à l'implémentation ; la formule en vigueur, ses
+paramètres et ses exemples sont décrits dans [scoring.md](scoring.md). En résumé : sécurité absolue
+(`100·e^(−points/50)`, plafond 59 avec un CRITICAL ouvert), qualité rapportée aux KLOC estimés,
+global = 0,6 × sécurité + 0,4 × qualité ; couverture par scanner (sécurité) et par part de code
+analysée (qualité) ; pas de score sous 40 % de couverture ; dépôt = branche la plus faible,
+organisation et global = moyennes pondérées par la taille du code.
 
 ## 8. Flux réseau
 
@@ -325,4 +312,4 @@ Les bases de vulnérabilités (Trivy DB, NVD pour Dependency-Check) et les jeux 
   renforcée prévue : bubblewrap (`--unshare-net`) si les user namespaces sont disponibles.
 * Gitleaks analyse l'arbre courant (clone superficiel) : les secrets présents uniquement dans
   l'historique ne sont pas détectés dans le MVP (option « historique complet » envisagée).
-* L'agrégation pondérée par KLOC suppose un comptage de lignes par le worker (phase 5).
+* La taille du code est estimée à partir des octets des fichiers de chaque langage (35 octets / ligne).

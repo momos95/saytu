@@ -14,7 +14,12 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /** A repository discovered on a connection. Named "Source..." to avoid clashing with Spring's {@code @Repository}. */
@@ -78,6 +83,11 @@ public class SourceRepositoryEntity {
 
     @Column(name = "last_activity_at")
     private Instant lastActivityAt;
+
+    /** Language labels of the latest analysed branch, written by the scan worker (read-only here). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "languages", columnDefinition = "jsonb", insertable = false, updatable = false)
+    private List<String> languages = new ArrayList<>();
 
     @Column(name = "discovered_at", nullable = false, updatable = false)
     private Instant discoveredAt;
@@ -241,6 +251,10 @@ public class SourceRepositoryEntity {
 
     public Instant getLastActivityAt() {
         return lastActivityAt;
+    }
+
+    public List<String> getLanguages() {
+        return languages == null ? List.of() : List.copyOf(languages);
     }
 
     public void setLastActivityAt(Instant lastActivityAt) {

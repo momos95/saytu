@@ -1,6 +1,8 @@
 package com.saytu.app.scan;
 
 import com.saytu.app.scan.JobQueue.ClaimedJob;
+import com.saytu.core.domain.Language;
+import com.saytu.core.domain.LanguageProfile;
 import com.saytu.core.domain.ScanStatus;
 import com.saytu.core.domain.ScannerExecutionStatus;
 import com.saytu.core.domain.ScannerId;
@@ -34,10 +36,12 @@ public class ResultWriter {
 
     private final NamedParameterJdbcTemplate jdbc;
     private final JobQueue queue;
+    private final ScoreService scores;
 
-    public ResultWriter(NamedParameterJdbcTemplate jdbc, JobQueue queue) {
+    public ResultWriter(NamedParameterJdbcTemplate jdbc, JobQueue queue, ScoreService scores) {
         this.jdbc = jdbc;
         this.queue = queue;
+        this.scores = scores;
     }
 
     @Transactional
@@ -48,7 +52,7 @@ public class ResultWriter {
     /** Records a job that ended without an outcome from the runner (e.g. cancelled, internal error). */
     @Transactional
     public void fail(ClaimedJob job, ScanStatus status, String error) {
-        finishJob(job, status, null, error, null, null, new Summary(0, 0, 0));
+        finishJob(job, status, null, error, null, null, new Summary(0, 0, 0), LanguageProfile.empty());
         queue.completeRunIfDone(job.runId());
     }
 
@@ -120,12 +124,20 @@ public class ResultWriter {
 
         Summary summary = new Summary(merged.size(), created, resolved);
         finishJob(job, status, outcome.commitSha(), outcome.error(), outcome.checkoutBytes(),
-                (int) Math.min(Integer.MAX_VALUE, outcome.checkoutFiles()), summary);
+                (int) Math.min(Integer.MAX_VALUE, outcome.checkoutFiles()), summary, outcome.languages());
         if (outcome.commitSha() != null) {
             jdbc.update(ScanSql.RECORD_BRANCH_SCAN, new MapSqlParameterSource()
                     .addValue("commitSha", outcome.commitSha())
                     .addValue("repositoryId", job.repositoryId())
                     .addValue("branch", job.branch()));
+            jdbc.update(ScoreSql.RECORD_LANGUAGES, new MapSqlParameterSource()
+                    .addValue("labels", Json.write(outcome.languages().labels().stream().map(Language::key).toList()))
+                    .addValue("repositoryId", job.repositoryId()));
+        }
+        if (outcome.error() == null && status != ScanStatus.CANCELLED) {
+            Map<ScannerId, ScannerExecutionStatus> executions = new EnumMap<>(ScannerId.class);
+            outcome.scanners().forEach(s -> executions.put(s.scanner(), s.status()));
+            scores.recordJob(job.id(), job.repositoryId(), job.branch(), outcome.languages(), executions);
         }
         queue.completeRunIfDone(job.runId());
         return summary;
@@ -176,7 +188,7 @@ public class ResultWriter {
     }
 
     private void finishJob(ClaimedJob job, ScanStatus status, String commitSha, String error, Long checkoutBytes,
-                           Integer checkoutFiles, Summary summary) {
+                           Integer checkoutFiles, Summary summary, LanguageProfile languages) {
         jdbc.update(ScanSql.FINISH_JOB, new MapSqlParameterSource()
                 .addValue("jobId", job.id())
                 .addValue("status", status.name())
@@ -186,7 +198,15 @@ public class ResultWriter {
                 .addValue("checkoutFiles", checkoutFiles == null || checkoutFiles == 0 ? null : checkoutFiles, Types.INTEGER)
                 .addValue("findingsCount", summary.findings())
                 .addValue("newFindings", summary.newFindings())
-                .addValue("resolvedFindings", summary.resolved()));
+                .addValue("resolvedFindings", summary.resolved())
+                .addValue("languages", languagesJson(languages)));
+    }
+
+    /** {"java": {"files": 12, "bytes": 34000}, ...} */
+    static String languagesJson(LanguageProfile languages) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        languages.stats().forEach((l, s) -> m.put(l.key(), Map.of("files", s.files(), "bytes", s.bytes())));
+        return Json.write(m);
     }
 
     static String truncate(String s, int max) {

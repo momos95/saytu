@@ -28,6 +28,9 @@ describe('RepositoriesPage', () => {
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(RepositoriesPage);
     fixture.detectChanges();
+    http.expectOne('/api/v1/scores').flush({ global: null, repositories: [], formula: {}, namespaces: [
+      { namespaceId: '1', namespace: 'acme', score: { security: 72, quality: 90, global: 79, coverage: 100,
+        reliability: 'HIGH', formulaVersion: '1', details: {}, computedAt: '2026-11-05T10:00:00Z' } }] });
     http.expectOne('/api/v1/git-connections').flush([{ id: 'c1', name: 'GitLab', enabled: true }]);
     http.expectOne('/api/v1/git-connections/c1/namespaces').flush([ns('2', 'acme/pay', '1'), ns('1', 'acme', null, { selected: true })]);
     return fixture;
@@ -43,6 +46,8 @@ describe('RepositoriesPage', () => {
     expect(items[0].textContent).toContain('acme');
     expect(items[1].textContent).toContain('acme/pay');
     expect(items[0].textContent).toContain('Tous les dépôts');
+    expect(items[0].textContent).toContain('Global 79');
+    expect(items[1].querySelector('[data-testid="scores"]')).toBeNull();
   });
 
   it('runs a discovery and reports the outcome', async () => {

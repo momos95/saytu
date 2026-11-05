@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks the SQL of the scan engine (backend/saytu-app/.../scan/ScanSql.java) on a throw-away PostgreSQL
+# Checks the SQL of the scan engine (backend/saytu-app/.../scan/ScanSql.java and ScoreSql.java) on a throw-away PostgreSQL
 # built from the Flyway migrations. Needs javac, python3 and the PostgreSQL server binaries.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -15,12 +15,14 @@ trap cleanup EXIT
 
 # 1. SQL constants -> JSON (ScanSql has no dependency, it compiles alone)
 mkdir -p "$WORK/classes"
-javac -d "$WORK/classes" "$ROOT/backend/saytu-app/src/main/java/com/saytu/app/scan/ScanSql.java"
+javac -d "$WORK/classes" "$ROOT/backend/saytu-app/src/main/java/com/saytu/app/scan/ScanSql.java" \
+      "$ROOT/backend/saytu-app/src/main/java/com/saytu/app/scan/ScoreSql.java"
 cat > "$WORK/Dump.java" <<'JAVA'
 import java.lang.reflect.*;
 public class Dump { public static void main(String[] a) throws Exception {
-  Class<?> c = Class.forName("com.saytu.app.scan.ScanSql"); StringBuilder sb = new StringBuilder("{"); boolean first = true;
-  for (Field f : c.getDeclaredFields()) { if (!Modifier.isStatic(f.getModifiers()) || f.getType() != String.class) continue;
+  StringBuilder sb = new StringBuilder("{"); boolean first = true;
+  for (String cls : new String[] {"com.saytu.app.scan.ScanSql", "com.saytu.app.scan.ScoreSql"})
+  for (Field f : Class.forName(cls).getDeclaredFields()) { if (!Modifier.isStatic(f.getModifiers()) || f.getType() != String.class) continue;
     f.setAccessible(true); String v = (String) f.get(null); if (!first) sb.append(','); first = false;
     sb.append('"').append(f.getName()).append("\":\"")
       .append(v.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")).append('"'); }

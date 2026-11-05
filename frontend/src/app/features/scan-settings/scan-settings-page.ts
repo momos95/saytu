@@ -8,8 +8,10 @@ import {
   PageView,
   Repository,
   SCANNER_LABELS,
+  SETTING_LABELS,
   ScanTargetSummary,
   Scanner,
+  languageLabel,
 } from '../repositories/sources.model';
 import { BranchPicker } from './branch-picker';
 
@@ -58,9 +60,16 @@ import { BranchPicker } from './branch-picker';
               <input type="number" min="64" max="65536" [value]="s.memoryMb" [disabled]="!isAdmin()"
                      (change)="edit(s, { memoryMb: +$any($event.target).value })" /></label>
           </div>
-          <p class="muted note">{{ s.id === 'pmd' || s.id === 'checkstyle' || s.id === 'dependency-check'
-            ? 'Arrive avec la phase 5 : pas encore exécuté (affiché « non exécuté » dans les audits).'
-            : 'Exécuté par le worker à chaque audit.' }}</p>
+          @if (s.settingKeys.length) {
+            <div class="limits">
+              @for (k of s.settingKeys; track k) {
+                <label>{{ settingLabel(k) }}
+                  <input type="text" class="setting" [value]="s.settings[k] ?? ''" [disabled]="!isAdmin()"
+                         (change)="editSetting(s, k, $any($event.target).value)" /></label>
+              }
+            </div>
+          }
+          <p class="muted note">{{ note(s) }}</p>
         </li>
       }
     </ul>
@@ -133,6 +142,7 @@ import { BranchPicker } from './branch-picker';
     .limits { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
     .limits label { display: flex; flex-direction: column; font-size: .8rem; gap: 2px; }
     .limits input { width: 110px; }
+    .limits input.setting { width: 220px; }
     input:not([type=checkbox]), select { font: inherit; padding: .4rem .55rem; border-radius: 6px; border: 1px solid var(--saytu-border);
                                          background: var(--saytu-bg); color: var(--saytu-text); }
     label.inline { display: flex; gap: 8px; align-items: center; min-width: 0; }
@@ -173,6 +183,24 @@ export class ScanSettingsPage implements OnInit {
 
   label(id: string): string {
     return SCANNER_LABELS[id] ?? id;
+  }
+
+  settingLabel(key: string): string {
+    return SETTING_LABELS[key] ?? key;
+  }
+
+  note(s: Scanner): string {
+    if (s.id === 'dependency-check') {
+      return 'Non intégré : SAYTU n’exécute pas ce scanner (Trivy couvre les dépendances).';
+    }
+    if (s.languages.length === 0) {
+      return 'Exécuté sur chaque branche auditée.';
+    }
+    return `Exécuté seulement si la branche contient du ${s.languages.map(languageLabel).join(' ou du ')} ; sinon « rien à analyser ».`;
+  }
+
+  editSetting(s: Scanner, key: string, value: string): void {
+    this.edit(s, { settings: { ...s.settings, [key]: value.trim() } });
   }
 
   modeLabel(m: BranchMode): string {

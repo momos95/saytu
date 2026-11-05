@@ -7,8 +7,14 @@ import com.saytu.core.domain.ScannerId;
 import com.saytu.core.scan.ResourceLimits;
 import com.saytu.core.scan.ScannerAdapter;
 import com.saytu.scan.ScanJobRunner;
+import com.saytu.scan.adapter.CheckstyleAdapter;
+import com.saytu.scan.adapter.CppcheckAdapter;
+import com.saytu.scan.adapter.EslintAdapter;
 import com.saytu.scan.adapter.GitleaksAdapter;
 import com.saytu.scan.adapter.OpengrepAdapter;
+import com.saytu.scan.adapter.PhpcsAdapter;
+import com.saytu.scan.adapter.PmdAdapter;
+import com.saytu.scan.adapter.SqlfluffAdapter;
 import com.saytu.scan.adapter.TrivyAdapter;
 import com.saytu.scan.git.GitCheckout;
 import com.saytu.scan.sandbox.ProcessSandbox;
@@ -76,7 +82,7 @@ public class ScanEngineConfig {
         return new ScanJobRunner(sandbox, checkout, workDir);
     }
 
-    /** Integrated scanners (PMD, Checkstyle and Dependency-Check arrive in phase 5). */
+    /** Integrated scanners (OWASP Dependency-Check is not integrated: see docs/licenses.md). */
     public record ScannerAdapters(Map<ScannerId, ScannerAdapter> byId) {
         public ScannerAdapters {
             byId = Map.copyOf(byId);
@@ -90,12 +96,20 @@ public class ScanEngineConfig {
         adapters.put(ScannerId.OPENGREP, new OpengrepAdapter(t.opengrep(), t.opengrepRules(), t.opengrepRuntime()));
         adapters.put(ScannerId.TRIVY, new TrivyAdapter(t.trivy(), t.trivyCacheDir()));
         adapters.put(ScannerId.GITLEAKS, new GitleaksAdapter(t.gitleaks(), t.gitleaksConfig()));
+        // quality tools, each run only when its language is present
+        Path home = t.home();
+        adapters.put(ScannerId.CHECKSTYLE, new CheckstyleAdapter(t.java(), home.resolve("checkstyle"), t.checkstyleConfig()));
+        adapters.put(ScannerId.PMD, new PmdAdapter(t.java(), home.resolve("pmd")));
+        adapters.put(ScannerId.ESLINT, new EslintAdapter(home.resolve("node/bin/node"), home.resolve("eslint")));
+        adapters.put(ScannerId.PHPCS, new PhpcsAdapter(Path.of("/usr/bin/php"), home.resolve("phpcs/bin/phpcs")));
+        adapters.put(ScannerId.CPPCHECK, new CppcheckAdapter(Path.of("/usr/bin/cppcheck")));
+        adapters.put(ScannerId.SQLFLUFF, new SqlfluffAdapter(home.resolve("sqlfluff/bin/sqlfluff")));
         return new ScannerAdapters(adapters);
     }
 
     @Bean
-    ResultWriter resultWriter(NamedParameterJdbcTemplate jdbc, JobQueue queue) {
-        return new ResultWriter(jdbc, queue);
+    ResultWriter resultWriter(NamedParameterJdbcTemplate jdbc, JobQueue queue, ScoreService scores) {
+        return new ResultWriter(jdbc, queue, scores);
     }
 
     @Bean

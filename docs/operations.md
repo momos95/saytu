@@ -1,4 +1,4 @@
-# Exploitation du moteur d'audit (phase 4)
+# Exploitation du moteur d'audit (phases 4-5)
 
 ## Services en jeu
 
@@ -25,8 +25,8 @@ Statuts d'un scanner pour une branche :
 | `SUCCEEDED` | l'outil a tout analysé | celles qu'il ne retrouve plus passent à `RESOLVED` |
 | `FAILED` | erreur, mémoire dépassée, ou analyse partielle (ex. Trivy sans base) | aucune n'est considérée corrigée |
 | `TIMED_OUT` | délai dépassé, processus tués | aucune n'est considérée corrigée |
-| `SKIPPED` | désactivé, ou pas encore intégré (PMD, Checkstyle, Dependency-Check : phase 5) | aucune n'est considérée corrigée |
-| `NOT_APPLICABLE` | rien à analyser pour cet outil | — |
+| `SKIPPED` | désactivé, ou non intégré (Dependency-Check) | aucune n'est considérée corrigée |
+| `NOT_APPLICABLE` | rien à analyser : langage absent (« aucun fichier PHP ») | — |
 
 Les statuts `ACCEPTED_RISK` et `FALSE_POSITIVE` posés par un humain ne sont jamais modifiés
 automatiquement.
@@ -84,13 +84,37 @@ Les conditions de licence de chaque pack sont dans `scanners/opengrep/rules/READ
 Ce qui vient du dépôt analysé ne peut pas désactiver l'audit : `.semgrepignore`, commentaires
 `nosemgrep`, `.gitleaks.toml`, `.gitleaksignore` et `gitleaks:allow` sont ignorés.
 
+## Langages et outils de qualité
+
+Après le clone, le worker détecte les langages de la branche (étiquettes affichées dans les pages
+Audits et Organisations & dépôts) et ne lance que les outils utiles :
+
+| Langage | Outil | Réglables (page « Scanners & branches ») |
+|---|---|---|
+| Java | Checkstyle, PMD | parallélisme PMD |
+| TypeScript / JavaScript | ESLint | — |
+| PHP | PHP_CodeSniffer | norme (PSR12 par défaut) |
+| C / C++ | Cppcheck | parallélisme |
+| SQL | SQLFluff | dialecte (`ansi` par défaut : choisir `postgres`, `mysql`, `tsql`… selon vos bases), parallélisme |
+| C# | aucun | la qualité C# est comptée « non couverte » |
+
+Les options sont des listes blanches validées par l'API ; elles sont passées aux outils comme
+arguments séparés, jamais par un shell. Aucun outil ne lit la configuration du dépôt analysé
+(`.eslintrc`, `phpcs.xml`, `.sqlfluff`, `checkstyle.xml`…) ni n'exécute son build.
+
+## Scores
+
+Calculés à la fin de chaque job réussi : sécurité, qualité et global sur 100, avec couverture et
+fiabilité. Formule, exemples et modification : [scoring.md](scoring.md). Un score « — » signifie
+que trop peu d'analyses ont réussi pour en donner un.
+
 ## Réglages
 
 | Variable (`.env`) | Défaut | Effet |
 |---|---|---|
 | `SAYTU_WORKER_MAX_PARALLEL_JOBS` | 2 | branches analysées en même temps |
 | `SAYTU_CHECKOUT_MAX_MB` | 2048 | taille maximale d'une branche clonée (au-delà : job en échec `TOO_LARGE`) |
-| page « Scanners & branches » | — | délai, temps CPU et mémoire de chaque scanner ; activation |
+| page « Scanners & branches » | — | délai, temps CPU et mémoire de chaque scanner ; activation ; options des outils |
 
 Le conteneur `worker` est limité à 4 CPU et 6 Go : (nombre de jobs parallèles) × (mémoire du plus
 gros scanner) doit rester en dessous.

@@ -101,6 +101,35 @@ public final class TestSupport {
         return Files.isExecutable(p) ? p : null;
     }
 
+    /** A file or directory of the tools directory (e.g. "checkstyle", "phpcs/bin/phpcs"), or {@code null}. */
+    public static Path toolPath(String relative) {
+        Path dir = toolsDir();
+        if (dir == null) {
+            return null;
+        }
+        Path p = dir.resolve(relative);
+        return Files.exists(p) ? p : null;
+    }
+
+    /** First existing executable among the candidates, or {@code null}. */
+    public static Path executable(String... candidates) {
+        for (String c : candidates) {
+            if (c == null) {
+                continue;
+            }
+            Path p = Path.of(c);
+            if (Files.isExecutable(p)) {
+                return p;
+            }
+        }
+        return null;
+    }
+
+    /** The java launcher of the JVM running the tests. */
+    public static Path java() {
+        return ProcessHandle.current().info().command().map(Path::of).filter(Files::isExecutable).orElse(null);
+    }
+
     /** Pre-extracted Opengrep runtime (worker image build), {@code null} to extract per run. */
     public static Path opengrepRuntime() {
         String dir = System.getenv("SAYTU_OPENGREP_RUNTIME");

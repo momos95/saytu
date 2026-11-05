@@ -1,0 +1,56 @@
+{
+  "formatVersion": 0,
+  "pmdVersion": "7.28.0",
+  "timestamp": "2026-11-05T21:00:00.000+01:00",
+  "files": [
+    {
+      "filename": "src/main/java/demo/Order.java",
+      "violations": [
+        {
+          "beginline": 16,
+          "begincolumn": 11,
+          "endline": 17,
+          "endcolumn": 9,
+          "description": "Avoid empty catch blocks",
+          "rule": "EmptyCatchBlock",
+          "ruleset": "Error Prone",
+          "priority": 3,
+          "externalInfoUrl": "https://docs.pmd-code.org/pmd-doc-7.28.0/pmd_rules_java_errorprone.html#emptycatchblock"
+        },
+        {
+          "beginline": 21,
+          "begincolumn": 20,
+          "endline": 21,
+          "endcolumn": 25,
+          "description": "Ensure you override both equals() and hashCode()",
+          "rule": "OverrideBothEqualsAndHashcode",
+          "ruleset": "Error Prone",
+          "priority": 3,
+          "externalInfoUrl": "https://docs.pmd-code.org/pmd-doc-7.28.0/pmd_rules_java_errorprone.html#overridebothequalsandhashcode"
+        }
+      ]
+    }
+  ],
+  "suppressedViolations": [
+    {
+      "filename": "src/main/java/demo/Order.java",
+      "violations": [
+        {
+          "beginline": 10,
+          "begincolumn": 16,
+          "endline": 10,
+          "endcolumn": 33,
+          "description": "Use equals() to compare strings instead of '==' or '!='",
+          "rule": "UseEqualsToCompareStrings",
+          "ruleset": "Error Prone",
+          "priority": 1,
+          "externalInfoUrl": "https://docs.pmd-code.org/pmd-doc-7.28.0/pmd_rules_java_errorprone.html#useequalstocomparestrings",
+          "suppressiontype": "annotation",
+          "usermsg": ""
+        }
+      ]
+    }
+  ],
+  "processingErrors": [],
+  "configurationErrors": []
+}

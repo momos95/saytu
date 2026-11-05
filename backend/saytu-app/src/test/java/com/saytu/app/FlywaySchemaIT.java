@@ -48,7 +48,7 @@ class FlywaySchemaIT {
 
     @Test
     void migrationSeedsAllScannersWithDependencyCheckDisabled() {
-        assertThat(scannerConfigs.findAll()).hasSize(6);
+        assertThat(scannerConfigs.findAll()).hasSize(10);
         assertThat(scannerConfigs.findById("dependency-check")).get()
                 .satisfies(s -> assertThat(s.isEnabled()).isFalse());
         assertThat(scannerConfigs.findById("trivy")).get()
