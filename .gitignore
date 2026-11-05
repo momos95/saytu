@@ -1,6 +1,8 @@
 # secrets
 .env
 *.pem
+# public test certificate only (no private key), needed by TrustConfigTest
+!backend/saytu-git/src/test/resources/test-ca.pem
 *.key
 
 # Java
