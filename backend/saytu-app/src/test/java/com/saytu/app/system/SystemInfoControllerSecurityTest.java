@@ -2,8 +2,8 @@ package com.saytu.app.system;
 
 import com.saytu.app.config.SaytuProperties;
 import com.saytu.app.config.SecurityConfig;
-import com.saytu.app.scanner.ScannerConfigEntity;
-import com.saytu.app.scanner.ScannerConfigRepository;
+import com.saytu.app.scanner.ScannerConfigService;
+import com.saytu.app.scanner.ScannerConfigService.ScannerView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,9 +14,9 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.List;
 
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -33,16 +33,12 @@ class SystemInfoControllerSecurityTest {
     private MockMvc mvc;
 
     @MockitoBean
-    private ScannerConfigRepository scanners;
+    private ScannerConfigService scanners;
 
     @BeforeEach
     void setUp() {
-        ScannerConfigEntity trivy = mock(ScannerConfigEntity.class);
-        when(trivy.getScannerId()).thenReturn("trivy");
-        when(trivy.isEnabled()).thenReturn(true);
-        when(trivy.getTimeoutSeconds()).thenReturn(900);
-        when(trivy.getMemoryMb()).thenReturn(2048);
-        when(scanners.findAllByOrderByScannerIdAsc()).thenReturn(List.of(trivy));
+        when(scanners.list()).thenReturn(List.of(new ScannerView("trivy", true, 900, 1800, 2048, false,
+                List.of("DEPENDENCY", "SECURITY"), null, Instant.EPOCH)));
     }
 
     @Test

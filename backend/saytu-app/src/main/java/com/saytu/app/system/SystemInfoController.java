@@ -2,14 +2,13 @@ package com.saytu.app.system;
 
 import com.saytu.app.config.SaytuProperties;
 import com.saytu.app.config.Roles;
-import com.saytu.app.scanner.ScannerConfigRepository;
+import com.saytu.app.scanner.ScannerConfigService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,19 +16,19 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Platform information for the UI header and the "Paramètres" page. Phase 1 endpoint: it proves
- * the end-to-end chain (Keycloak token → role mapping → JPA → PostgreSQL) with real data.
+ * Platform information for the UI header and the "Paramètres" page: version, scanners and the
+ * roles of the caller.
  */
 @RestController
 @RequestMapping("/api/v1/system")
 @Tag(name = "System")
 public class SystemInfoController {
 
-    private final ScannerConfigRepository scanners;
+    private final ScannerConfigService scanners;
     private final ObjectProvider<BuildProperties> buildProperties;
     private final SaytuProperties properties;
 
-    public SystemInfoController(ScannerConfigRepository scanners, ObjectProvider<BuildProperties> buildProperties,
+    public SystemInfoController(ScannerConfigService scanners, ObjectProvider<BuildProperties> buildProperties,
                                 SaytuProperties properties) {
         this.scanners = scanners;
         this.buildProperties = buildProperties;
@@ -37,12 +36,12 @@ public class SystemInfoController {
     }
 
     @GetMapping("/info")
-    @Transactional(readOnly = true)
     @Operation(summary = "Version, configured scanners and roles of the caller")
     public SystemInfo info(Authentication authentication) {
         BuildProperties build = buildProperties.getIfAvailable();
-        List<ScannerInfo> scannerInfos = scanners.findAllByOrderByScannerIdAsc().stream()
-                .map(s -> new ScannerInfo(s.getScannerId(), s.isEnabled(), s.getTimeoutSeconds(), s.getMemoryMb()))
+        // Through the service (DTOs): controllers never touch JPA entities (ArchitectureTest)
+        List<ScannerInfo> scannerInfos = scanners.list().stream()
+                .map(s -> new ScannerInfo(s.id(), s.enabled(), s.timeoutSeconds(), s.memoryMb()))
                 .toList();
         List<String> roles = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
