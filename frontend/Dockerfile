@@ -25,6 +25,9 @@ LABEL org.opencontainers.image.title="saytu-web" \
 ENV NGINX_ENVSUBST_FILTER="^SAYTU_"
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --chmod=755 nginx/10-keycloak-origin.envsh /docker-entrypoint.d/10-keycloak-origin.envsh
+# A Windows checkout may have converted these files to CRLF: "export NAME\r" makes the entrypoint exit (code 2)
+USER root
+RUN sed -i 's/\r$//' /docker-entrypoint.d/10-keycloak-origin.envsh /etc/nginx/templates/default.conf.template
 COPY --from=build /src/dist/saytu-web/browser /usr/share/nginx/html
 # public/assets/config.json (dev fallback) is shadowed by the exact-match location generated from the environment
 EXPOSE 8080
