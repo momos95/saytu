@@ -58,7 +58,9 @@ import { BranchPicker } from './branch-picker';
               <input type="number" min="64" max="65536" [value]="s.memoryMb" [disabled]="!isAdmin()"
                      (change)="edit(s, { memoryMb: +$any($event.target).value })" /></label>
           </div>
-          <p class="muted note">Intégré à la phase {{ s.id === 'pmd' || s.id === 'checkstyle' || s.id === 'dependency-check' ? 5 : 4 }}.</p>
+          <p class="muted note">{{ s.id === 'pmd' || s.id === 'checkstyle' || s.id === 'dependency-check'
+            ? 'Arrive avec la phase 5 : pas encore exécuté (affiché « non exécuté » dans les audits).'
+            : 'Exécuté par le worker à chaque audit.' }}</p>
         </li>
       }
     </ul>

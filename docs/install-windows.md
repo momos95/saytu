@@ -4,7 +4,8 @@ Docker Engine est installé **dans une distribution Linux sous WSL 2** : gratuit
 (Apache-2.0), sans Docker Desktop (dont la licence est payante pour les organisations de plus de
 250 salariés ou 10 M$ de chiffre d'affaires). Les scripts du projet s'exécutent tels quels.
 
-Prévoir 8 Go de RAM pour WSL et 15 à 20 minutes pour la première construction.
+Prévoir 8 Go de RAM pour WSL (le worker d'audit peut utiliser jusqu'à 6 Go) et 20 à 30 minutes pour
+la première construction (téléchargement des scanners, tests avec les vrais scanners).
 
 ## 1. Distribution Linux
 
@@ -75,7 +76,7 @@ cp /mnt/c/Users/<vous>/certs/proxy-ca.cer data/ca/
 scripts/generate-secrets.sh
 grep SAYTU_INITIAL_ADMIN_PASSWORD .env
 docker compose up -d --build
-docker compose ps        # postgres, keycloak, api, web : "healthy"
+docker compose ps        # postgres, keycloak, api, worker, web : "healthy"
 ```
 
 Construction plus rapide (sans les tests unitaires) : `SAYTU_SKIP_TESTS=true` dans `.env`.

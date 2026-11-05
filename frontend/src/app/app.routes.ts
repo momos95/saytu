@@ -31,6 +31,11 @@ export const routes: Routes = [
         title: 'Scanners et branches · SAYTU',
         loadComponent: () => import('./features/scan-settings/scan-settings-page').then(m => m.ScanSettingsPage),
       },
+      {
+        path: 'audits',
+        title: 'Audits · SAYTU',
+        loadComponent: () => import('./features/audits/audits-page').then(m => m.AuditsPage),
+      },
       ...NAV_ITEMS.filter(item => item.data).map(item => ({
         path: item.path,
         component: PlannedPage,

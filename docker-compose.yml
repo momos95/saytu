@@ -3,8 +3,7 @@
 #   UI: ${SAYTU_PUBLIC_URL} (default http://localhost:8080)   SSO: ${SAYTU_KEYCLOAK_PUBLIC_URL}
 # Optional local LLM: docker compose --profile ai up -d
 #
-# Phase 1 services: postgres, keycloak, api, web (+ optional ollama).
-# The scan worker (scanner binaries, sandbox) is added in phase 4.
+# Services: postgres, keycloak, api, worker (scanners), web (+ optional ollama).
 
 name: saytu
 
@@ -117,9 +116,11 @@ services:
     <<: *hardening
     build:
       context: ./backend
+      target: api
       # PEM certificates in ./data/ca are trusted at build time (Maven) and at runtime (Git platforms)
       additional_contexts:
         ca: ${SAYTU_CA_DIR:-./data/ca}
+        scanners: ./scanners
       args:
         SKIP_TESTS: ${SAYTU_SKIP_TESTS:-false}
     image: saytu/api:${SAYTU_VERSION:-dev}
@@ -161,6 +162,64 @@ services:
     deploy:
       resources:
         limits: { cpus: "2", memory: 1536m }
+
+  # Executes the audits: clones repositories and runs Opengrep, Trivy and Gitleaks in bounded
+  # sub-processes. Same application as "api" with SAYTU_WORKER_ENABLED=true; no published port.
+  worker:
+    <<: *hardening
+    build:
+      context: ./backend
+      target: worker
+      additional_contexts:
+        ca: ${SAYTU_CA_DIR:-./data/ca}
+        scanners: ./scanners
+      args:
+        SKIP_TESTS: ${SAYTU_SKIP_TESTS:-false}
+    image: saytu/worker:${SAYTU_VERSION:-dev}
+    environment:
+      SAYTU_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-saytu}
+      SAYTU_DB_USER: ${POSTGRES_USER:-saytu}
+      SAYTU_DB_PASSWORD: ${POSTGRES_PASSWORD}
+      SAYTU_OIDC_ISSUER: ${SAYTU_KEYCLOAK_PUBLIC_URL:-http://localhost:8180}/realms/saytu
+      SAYTU_OIDC_JWK_SET_URI: http://keycloak:8080/realms/saytu/protocol/openid-connect/certs
+      SAYTU_OIDC_AUDIENCE: saytu-api
+      SAYTU_MASTER_KEY: ${SAYTU_MASTER_KEY:?set SAYTU_MASTER_KEY in .env}
+      SAYTU_PREVIOUS_MASTER_KEYS: ${SAYTU_PREVIOUS_MASTER_KEYS:-}
+      SAYTU_GIT_ALLOW_PLAIN_HTTP: ${SAYTU_GIT_ALLOW_PLAIN_HTTP:-false}
+      SAYTU_GIT_CA_BUNDLE: ${SAYTU_GIT_CA_BUNDLE_IN_CONTAINER:-}
+      SAYTU_LOCAL_REPOS_ROOT: /srv/git
+      SAYTU_WORKER_ENABLED: "true"
+      SAYTU_WORKER_ID: worker-1
+      SAYTU_WORKER_MAX_PARALLEL_JOBS: ${SAYTU_WORKER_MAX_PARALLEL_JOBS:-2}
+      # downloads public advisories only (never code); set to false on an air-gapped site
+      SAYTU_TRIVY_DB_AUTO_UPDATE: ${SAYTU_TRIVY_DB_AUTO_UPDATE:-true}
+      SAYTU_TRIVY_DB_REPOSITORY: ${SAYTU_TRIVY_DB_REPOSITORY:-}
+      SAYTU_CHECKOUT_MAX_MB: ${SAYTU_CHECKOUT_MAX_MB:-2048}
+      # outbound proxy for clones and the vulnerability database, if the site requires one
+      HTTPS_PROXY: ${SAYTU_HTTPS_PROXY:-}
+      NO_PROXY: ${SAYTU_NO_PROXY:-}
+      JAVA_TOOL_OPTIONS: >-
+        -XX:MaxRAMPercentage=25 -XX:+ExitOnOutOfMemoryError
+        ${SAYTU_JAVA_PROXY_OPTS:-}
+    volumes:
+      - ${SAYTU_LOCAL_REPOS_HOST_DIR:-./data/local-repos}:/srv/git:ro
+      - ${SAYTU_CA_DIR:-./data/ca}:/etc/saytu/ca:ro
+      # optional rule packs installed with scripts/fetch-opengrep-rules.sh
+      - ./data/rules:/etc/saytu/rules:ro
+      - trivy-db:/var/lib/saytu/trivy
+      - scan-work:/var/lib/saytu/work
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    cap_drop: [ALL]
+    networks: [data, edge]
+    depends_on:
+      # the API applies the database migrations first
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits: { cpus: "4", memory: 6g }
 
   web:
     <<: *hardening
@@ -211,3 +270,7 @@ networks:
 volumes:
   pgdata: {}
   ollama: {}
+  # Trivy vulnerability database (refreshed by the worker, or copied by hand when offline)
+  trivy-db: {}
+  # checkouts and reports of running jobs (wiped after each job)
+  scan-work: {}

@@ -1,6 +1,6 @@
 # ADR-0003 — Isolation des scanners sans socket Docker
 
-**Statut** : accepté (phase 1), implémentation en phase 4
+**Statut** : accepté (phase 1), implémenté en phase 4 (module `saytu-scan`) — deux ajustements, voir « Mise en œuvre »
 
 ## Contexte
 Le code analysé est non fiable. Exigences : processus isolé, timeout, limites CPU/mémoire, espace
@@ -33,3 +33,22 @@ temporaire dédié, aucun token exposé, aucun script de build exécuté.
 + Pas de socket Docker, pas de privilège ; fonctionne sur tout hôte Linux avec Compose.
 − Les processus d'un même job partagent le noyau et le réseau du worker : l'absence d'egress des
   scanners repose sur leur configuration offline (+ filtrage hôte recommandé, phase 8).
+
+## Mise en œuvre (phase 4) et écarts par rapport à la décision initiale
+* **Mémoire** : RLIMIT_AS n'est pas utilisable. Les runtimes Go (Gitleaks, Trivy) et OCaml
+  (Opengrep) réservent plusieurs Go d'espace d'adressage virtuel dès le démarrage : mesuré, Gitleaks
+  et Opengrep échouent sous 8 Go de RLIMIT_AS alors qu'ils n'utilisent que quelques centaines de Mo.
+  `ProcessSandbox` mesure donc la mémoire **résidente** (VmRSS de `/proc`) de tout l'arbre de
+  processus toutes les 250 ms et le tue au-delà de la limite (statut FAILED « memory limit exceeded »).
+  `prlimit` garde RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_NOFILE et RLIMIT_CORE=0. La limite `memory`
+  du conteneur reste le plafond global.
+* **Identifiants du clone** : au lieu d'un script askpass, l'en-tête `Authorization` est défini par
+  les variables `GIT_CONFIG_COUNT/KEY/VALUE` de l'environnement du seul processus `git`
+  (`http.<origine>.extraHeader`, limité à l'origine du dépôt) : rien sur la ligne de commande, aucun
+  fichier, rien dans `.git/config`. Le `.git` est supprimé avant l'analyse.
+* Opengrep n'a plus d'option `--metrics` (télémétrie retirée du fork) ; `--disable-version-check`
+  évite tout appel réseau. Les mécanismes de suppression contrôlés par le dépôt analysé
+  (`.semgrepignore`, `nosemgrep`, `.gitleaks.toml`, `.gitleaksignore`, `gitleaks:allow`) sont
+  ignorés : un audit ne peut pas être désactivé par le code audité.
+* `bwrap` n'est pas encore utilisé (phase 8).
+

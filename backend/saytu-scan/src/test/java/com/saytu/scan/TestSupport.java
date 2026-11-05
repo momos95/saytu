@@ -101,6 +101,12 @@ public final class TestSupport {
         return Files.isExecutable(p) ? p : null;
     }
 
+    /** Pre-extracted Opengrep runtime (worker image build), {@code null} to extract per run. */
+    public static Path opengrepRuntime() {
+        String dir = System.getenv("SAYTU_OPENGREP_RUNTIME");
+        return dir == null || dir.isBlank() || !Files.isDirectory(Path.of(dir)) ? null : Path.of(dir);
+    }
+
     /** Repository root (contains scanners/), found from the working directory upwards. */
     public static Path repositoryRoot() {
         Path p = Path.of("").toAbsolutePath();

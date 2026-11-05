@@ -29,6 +29,16 @@ if ls -d /usr/lib/postgresql/*/bin >/dev/null 2>&1 || [[ -n "${PG_BIN:-}" ]]; th
   scripts/verify-schema.sh >/dev/null && pass "Flyway migrations + constraint checks" || fail "schema (run scripts/verify-schema.sh)"
 else skip "schema" "PostgreSQL binaries not found, set PG_BIN"; fi
 
+echo "== Scan engine SQL"
+if command -v javac >/dev/null && command -v python3 >/dev/null && { ls -d /usr/lib/postgresql/*/bin >/dev/null 2>&1 || [[ -n "${PG_BIN:-}" ]]; }; then
+  scripts/verify-scan-sql.sh >/dev/null 2>&1 && pass "scan SQL lifecycle (verify-scan-sql.sh)" || fail "scan SQL (run scripts/verify-scan-sql.sh)"
+else skip "scan SQL" "javac, python3 or PostgreSQL binaries missing"; fi
+
+echo "== Opengrep rules"
+if command -v opengrep >/dev/null; then
+  opengrep --test --disable-version-check scanners/opengrep/rules/saytu >/dev/null 2>&1 && pass "SAYTU rule tests" || fail "SAYTU rule tests (opengrep --test scanners/opengrep/rules/saytu)"
+else skip "SAYTU rule tests" "opengrep not installed (tested during the worker image build)"; fi
+
 echo "== Backend"
 if command -v mvn >/dev/null; then
   if docker info >/dev/null 2>&1; then goal=verify; else goal=test; fi

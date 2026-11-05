@@ -4,9 +4,10 @@ Plateforme **on-premise** et open source d'audit automatisé de la sécurité et
 code, multi-organisations et multi-dépôts (GitLab, GitHub, Bitbucket, dépôts locaux).
 Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre infrastructure.
 
-> **État : phase 3 / 8** — connexion via Keycloak, connexions Git chiffrées, découverte des
-> organisations, dépôts et branches, choix du périmètre d'audit et configuration des scanners.
-> Aucun scan n'est encore exécutable (phase 4). Détail : [docs/roadmap.md](docs/roadmap.md).
+> **État : phase 4 / 8** — connexion via Keycloak, connexions Git chiffrées, découverte des
+> organisations, dépôts et branches, périmètre d'audit, et **audits réels** : clone sécurisé puis
+> Opengrep (SAST), Trivy (dépendances, configuration) et Gitleaks (secrets) dans un worker isolé.
+> Scores, PMD/Checkstyle et tableau de bord arrivent en phases 5-6. Détail : [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
 
@@ -18,6 +19,7 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 | [docs/licenses.md](docs/licenses.md) | licences des composants et des règles |
 | [docs/git-connections.md](docs/git-connections.md) | créer les tokens GitLab, GitHub, Bitbucket ; lire un résultat de test |
 | [docs/security.md](docs/security.md) | mesures de sécurité et risques résiduels |
+| [docs/operations.md](docs/operations.md) | exploitation des audits : base Trivy (en ligne / hors ligne), packs de règles, reprises |
 | [docs/install-windows.md](docs/install-windows.md) | installation sur Windows avec WSL 2 et Docker Engine |
 | [docs/roadmap.md](docs/roadmap.md) | phases et état d'avancement |
 
@@ -36,7 +38,7 @@ proxy d'inspection HTTPS).
 ```bash
 scripts/generate-secrets.sh          # crée .env (mode 600) avec des secrets aléatoires
 docker compose up -d --build
-docker compose ps                    # postgres, keycloak, api, web doivent être "healthy"
+docker compose ps                    # postgres, keycloak, api, worker, web doivent être "healthy"
 ```
 
 * Interface : <http://localhost:8080> — connexion via Keycloak, puis **Connexions Git** pour enregistrer
@@ -84,10 +86,12 @@ PostgreSQL, puis `mvn -f backend/pom.xml -pl saytu-app spring-boot:run` avec les
 ```
 backend/saytu-core   domaine et ports, sans framework (empreintes, dédoublonnage, expurgation, chiffrement)
 backend/saytu-git    connecteurs GitLab / GitHub / Bitbucket / local, JDK seul
-backend/saytu-app    application Spring Boot (API ; worker en phase 4)
+backend/saytu-scan   moteur d'analyse, JDK seul : sandbox, clone sécurisé, adaptateurs Opengrep / Trivy / Gitleaks
+backend/saytu-app    application Spring Boot (API, et worker avec SAYTU_WORKER_ENABLED=true)
+scanners/          règles Opengrep (SAYTU, Aikido), configuration Gitleaks
 frontend/          Angular 20
-infra/             realm Keycloak, initialisation PostgreSQL
-scripts/           secrets, vérification du schéma
+infra/             realm Keycloak
+scripts/           secrets, vérification du schéma et du SQL, import de packs de règles
 docs/              architecture, ADR, licences
 ```
 

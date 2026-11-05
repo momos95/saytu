@@ -5,7 +5,7 @@
 | 1 | Architecture, modèle de données, monorepo, Docker Compose | ✅ livrée (voir détail ci-dessous) |
 | 2 | Authentification Keycloak dans l'UI, coffre de tokens AES-GCM, CRUD + test des connexions Git | ✅ livrée (voir détail) |
 | 3 | Découverte organisations / dépôts / branches, sélection, configuration des branches | ✅ livrée (voir détail) |
-| 4 | Worker, file d'exécution, sandbox, clone sécurisé, Opengrep, Trivy, Gitleaks | à faire |
+| 4 | Worker, file d'exécution, sandbox, clone sécurisé, Opengrep, Trivy, Gitleaks | ✅ livrée (voir détail) |
 | 5 | PMD, Checkstyle, normalisation complète, scoring et couverture | à faire |
 | 6 | Dashboard Angular, détail dépôt, liste/détail des vulnérabilités, rapports HTML/PDF/JSON/SARIF | à faire |
 | 7 | Planification cron, historique, comparaison de scans, webhooks, recommandations, Ollama | à faire |
@@ -33,6 +33,56 @@ chiffrement) : une installation existante doit être réinitialisée.
 **Avec Docker Compose** : `docker compose down -v`, renommer les variables `ACS_*` en `SAYTU_*` dans
 `.env` (ou le regénérer avec `scripts/generate-secrets.sh` après l'avoir supprimé), puis
 `docker compose up -d --build`.
+
+## Phase 4 — détail (5 novembre 2026)
+
+### Livré et vérifié dans l'environnement de développement
+* Module `saytu-scan` (JDK seul) — **27 tests exécutés, 27 réussis**, dont 3 de bout en bout avec les
+  **vrais binaires** Opengrep 1.33.1, Trivy 0.76.1 et Gitleaks 8.30.1 sur un dépôt Git généré :
+  * `ProcessSandbox` : environnement vide (vérifié), destruction de l'arbre de processus au délai,
+    `prlimit` appliqué (vérifié par `ulimit`), taille des fichiers écrits plafonnée, mémoire résidente
+    surveillée (processus de 400 Mo tué sous une limite de 200 Mo), secrets masqués dans les sorties ;
+  * `GitCheckout` : clone réel par HTTP « smart » authentifié (serveur `git http-backend` de test) —
+    en-tête envoyé, mauvais token refusé sans apparaître dans l'erreur ; branche ciblée, `.git`
+    supprimé, liens symboliques neutralisés, sous-modules ignorés, quota, délai, URL refusées
+    (`ssh://`, `ext::`, identifiants dans l'URL, `http://`, chemin hors racine), nom de branche en
+    forme d'option refusé ;
+  * adaptateurs : rapports réels d'Opengrep et de Trivy (configuration), rapports de référence de
+    Trivy (vulnérabilités npm et Maven), Gitleaks sur secrets générés ; empreinte stable quand les
+    lignes bougent ; chemins hors du dépôt ignorés ; rapport absent ou illisible = erreur, jamais
+    « zéro résultat » ;
+  * e2e : `.semgrepignore` et `.gitleaks.toml` plantés dans le dépôt n'empêchent pas la détection ;
+    Trivy sans base → `FAILED` mais erreurs de configuration conservées ; job `PARTIAL` ; répertoire
+    du job supprimé.
+* Pack de règles Opengrep SAYTU : **24 règles, 24 tests `opengrep --test` réussis** ; aucun faux
+  positif sur le code de SAYTU ; détections réelles sur WebGoat et OWASP Juice Shop.
+* SQL du moteur (`ScanSql`) : **52 contrôles réussis sur PostgreSQL 16** (`scripts/verify-scan-sql.sh`) :
+  planification, unicité d'un job actif par dépôt × branche, file `SKIP LOCKED`, bail, reprise après
+  crash, upsert des findings, résolution uniquement si tous les scanners concernés ont réussi,
+  réouverture, triage humain préservé, filtres de l'API, annulation.
+* Migration V4 : 39 contrôles de contraintes toujours réussis.
+* Frontend : logique de la page Audits — **3 specs exécutées dans Node, 3 réussies**.
+
+### Livré, écrit pour compiler, **non exécuté ici** (pas d'accès à Maven Central ni à npm)
+* Spring : `ScanService`, `FindingQueryService`, `JobQueue`, `ScanPlanner`, `ResultWriter`,
+  `ScanWorker`, `TrivyDbUpdater`, `ScanEngineConfig`, `ScanSourceService`, contrôleurs
+  `/api/v1/scans` et `/api/v1/findings`. Le paquet `app.scan` a été compilé avec `-Werror` contre
+  des souches des API Spring utilisées. Tests : `ScanControllerSecurityTest`, `ScanSupportTest`.
+* Angular : page Audits (lancement, progression rafraîchie toutes les 5 s, statut par scanner,
+  résultats par branche, annulation), spec TestBed.
+* Docker : image `worker` (binaires vérifiés par SHA-256, runtime Opengrep pré-extrait, règles testées
+  pendant la construction), service `worker`, volumes `trivy-db` et `scan-work`. Les tests du module
+  `saytu-scan` s'exécutent avec les vrais scanners pendant `docker compose build`.
+
+### Limites connues de la phase 4
+* PMD, Checkstyle, Dependency-Check : affichés « non exécuté » (phase 5) ; pas encore de scores.
+* La liste complète et filtrable des vulnérabilités et leur triage arrivent en phase 6 ; la page
+  Audits affiche les 50 premiers résultats ouverts de chaque branche.
+* Isolation : sous-processus bornés dans un conteneur durci ; pas encore de `bwrap` ni de filtrage
+  réseau des scanners (phase 8).
+* Base Java de Trivy non téléchargée : les `.jar` contenus dans les dépôts ne sont pas analysés.
+* Le token est déchiffré pendant toute la durée d'un job (mémoire du worker uniquement, jamais
+  transmis aux scanners).
 
 ## Phase 3 — détail
 

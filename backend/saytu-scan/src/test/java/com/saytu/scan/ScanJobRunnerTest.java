@@ -95,7 +95,7 @@ class ScanJobRunnerTest {
         Path root = TestSupport.repositoryRoot();
         return List.of(
                 new ScannerPlan(new OpengrepAdapter(TestSupport.tool("opengrep"),
-                        List.of(root.resolve("scanners/opengrep/rules"))), true, limits, Map.of()),
+                        List.of(root.resolve("scanners/opengrep/rules")), TestSupport.opengrepRuntime()), true, limits, Map.of()),
                 new ScannerPlan(new TrivyAdapter(TestSupport.tool("trivy"), trivyCache), true, limits, Map.of()),
                 new ScannerPlan(new GitleaksAdapter(TestSupport.tool("gitleaks"),
                         root.resolve("scanners/gitleaks/gitleaks.toml")), true, limits, Map.of()));

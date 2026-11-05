@@ -44,7 +44,7 @@ flowchart LR
 |---|---|---|---|
 | `web` | `nginx-unprivileged` + build Angular | SPA, CSP stricte, reverse proxy `/api`, config runtime `/assets/config.json` | port `SAYTU_HTTP_PORT` |
 | `api` | `eclipse-temurin:21-jre-alpine` | API REST, sécurité, découverte Git, planification, scoring, rapports | non (via `web`) |
-| `worker` **[phase 4]** | image `api` + binaires scanners | consomme la file, clone, exécute les scanners, normalise | non |
+| `worker` | `eclipse-temurin:21-jre-noble` + git + Opengrep / Trivy / Gitleaks (versions figées, SHA-256 vérifié) ; même application, `SAYTU_WORKER_ENABLED=true` | planifie les audits, consomme la file, clone, exécute les scanners, enregistre les résultats, met à jour la base Trivy | non |
 | `keycloak` | `quay.io/keycloak/keycloak:26.4` | OIDC, rôles ADMIN/AUDITOR/VIEWER, MFA, anti-bruteforce | port `SAYTU_KEYCLOAK_PORT` |
 | `postgres` | `postgres:16-alpine` | base `saytu` (rôle `saytu`) + base `keycloak` (rôle `keycloak`), isolées | non |
 | `ollama` | `ollama/ollama` (profil `ai`) | LLM local pour les recommandations | non, réseau `data` sans egress |
@@ -105,7 +105,8 @@ ArchUnit, `ArchitectureTest`).
 | `app.git` | câblage Spring d'`saytu-git` (`saytu.git.*`) | ✅ phase 2 |
 | `app.audit` | journal `audit_event` des actions sensibles | ✅ phase 2 |
 | `app.source` | + `GitConnectionService` / `GitConnectionController` (`/api/v1/git-connections`) | ✅ phase 2 |
-| `app.scan` **[phase 4]** | orchestration : runs, jobs, file, worker, sandbox | — |
+| `app.scan` | runs, planification, file `SKIP LOCKED` + bail, worker, enregistrement des findings (JDBC, `ScanSql`), API `/scans` et `/findings` | ✅ phase 4 |
+| module `saytu-scan` (JDK seul) | `ProcessSandbox`, `GitCheckout`, adaptateurs Opengrep / Trivy / Gitleaks, `ScanJobRunner` | ✅ phase 4 |
 | `app.scanners.*` **[phases 4-5]** | adaptateurs `ScannerAdapter` | — |
 | `app.scoring` **[phase 5]** | calcul et snapshots de scores | — |
 | `app.report` **[phase 6]** | HTML, PDF, JSON, SARIF | — |
@@ -147,22 +148,32 @@ puisqu'il ne parle qu'à PostgreSQL et aux forges Git).
 | Preuves de findings | `SecretRedactor` appliqué dans le constructeur de `NormalizedFinding` | ✅ |
 | Logs | aucun en-tête/corps HTTP sortant journalisé ; erreurs client = identifiant de corrélation | ✅ |
 
-### 4.3 Exécution des scanners **[phase 4]** — voir ADR-0003
+### 4.3 Exécution des scanners — voir ADR-0003 (implémenté en phase 4)
 
-Chaîne d'un job :
+Chaîne d'un job (`ScanJobRunner`) :
 
-1. **Clone** par le worker : `git -c core.hooksPath=/dev/null -c protocol.file.allow=never
-   -c protocol.ext.allow=never clone --depth 1 --single-branch --no-tags --no-recurse-submodules`.
-   Le token est fourni à **ce seul processus** via un `GIT_ASKPASS` éphémère (fichier 0700 supprimé
-   après usage), jamais dans l'URL, jamais dans `.git/config`.
-2. **Assainissement** : suppression de `.git/` (hors besoin explicite), vérification des liens
-   symboliques sortant de l'arborescence, quota de taille du dépôt.
+1. **Clone** (`GitCheckout`) : `git clone --depth 1 --single-branch --branch <b> --no-tags
+   --no-recurse-submodules` avec `core.hooksPath=/dev/null`, `core.symlinks=false`,
+   `protocol.allow=never` sauf `https` (et `file` pour les connexions LOCAL sous la racine
+   configurée), `http.followRedirects=false`, LFS désactivé, aucune configuration globale ou
+   système. Le token voyage dans un en-tête `Authorization` défini par les variables
+   `GIT_CONFIG_*` de l'environnement du **seul** processus `git`, limité à l'origine du dépôt :
+   jamais dans l'URL, la ligne de commande ou `.git/config`. Nom de branche validé comme
+   `git check-ref-format` (pas d'option déguisée).
+2. **Assainissement** : lecture du commit, suppression de `.git/`, suppression de tout lien
+   symbolique restant, quota de taille et de nombre de fichiers.
 3. **Analyse** : un sous-processus par scanner, construit à partir d'un `CommandSpec` :
    argv sans shell ; environnement **vide** + liste blanche (les noms de type `*TOKEN*`, `*SECRET*`,
    `*PASSWORD*`, `*ASKPASS*` sont refusés à la construction) ; répertoire de travail privé 0700 hors
-   des sources ; `prlimit` (CPU, mémoire virtuelle, taille de fichier, descripteurs) ; `timeout`
-   avec destruction de l'arbre de processus ; options *offline* de chaque outil.
-4. **Nettoyage** systématique (bloc `finally`) des sources et répertoires temporaires.
+   des sources ; `prlimit` (CPU, taille de fichier, descripteurs, pas de core dump) ; mémoire
+   résidente de l'arbre de processus surveillée ; `timeout` avec destruction de l'arbre de
+   processus ; options *offline* de chaque outil ; mécanismes de suppression du dépôt ignorés.
+4. **Nettoyage** systématique (bloc `finally`) des sources et des rapports (qui peuvent contenir
+   des secrets en clair : seuls une empreinte SHA-256 et un extrait masqué sont conservés).
+
+Un scanner qui n'a pas terminé est enregistré `FAILED` ou `TIMED_OUT` avec la raison, jamais comme
+« aucun résultat ». Trivy sans base de vulnérabilités analyse quand même les fichiers de configuration,
+mais l'exécution est enregistrée `FAILED` (« dependencies were NOT checked »).
 
 Aucun outil de build (`mvn`, `gradle`, `npm install`, `pip`…) n'est invoqué. Les scanners
 d'artefacts (Trivy, Dependency-Check) lisent les manifestes et lockfiles tels qu'ils sont dans le
@@ -180,21 +191,23 @@ sequenceDiagram
   participant W as worker
   participant G as Forge Git
   U->>A: POST /api/v1/scans {repositories, branches}
-  A->>DB: INSERT scan_run + scan_job (1 par dépôt×branche)
+  A->>DB: INSERT scan_run (portée demandée)
+  W->>DB: planification : 1 scan_job par dépôt×branche
+  W->>G: liste des branches si mode PRESET
   Note over DB: index unique partiel : 1 job actif<br/>par (dépôt, branche)
   loop toutes les N secondes
     W->>DB: SELECT … WHERE status='QUEUED'<br/>ORDER BY priority, queued_at<br/>FOR UPDATE SKIP LOCKED LIMIT 1
     W->>DB: status=RUNNING, lease_expires_at
   end
-  W->>G: résolution du commit + clone superficiel (token via askpass)
+  W->>G: clone superficiel (token en en-tête, environnement du seul git)
   par chaque scanner activé
     W->>W: sous-processus borné → rapport JSON/SARIF/XML
     W->>DB: scanner_execution (statut, version outil, version règles)
   end
   W->>W: parse → NormalizedFinding → expurgation → empreinte → dédoublonnage
   W->>DB: UPSERT finding, INSERT finding_occurrence,<br/>OPEN→RESOLVED si non revu ET scanner exécuté
-  W->>DB: score_snapshot (branche, dépôt, namespace, global)
-  W->>DB: webhook_delivery (outbox) si nouveaux CRITICAL
+  W->>DB: score_snapshot (branche, dépôt, namespace, global) [phase 5]
+  W->>DB: webhook_delivery (outbox) si nouveaux CRITICAL [phase 7]
 ```
 
 Règles de cycle de vie des findings :
