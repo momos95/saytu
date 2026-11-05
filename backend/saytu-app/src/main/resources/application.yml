@@ -53,6 +53,25 @@ saytu:
     ca-bundle: ${SAYTU_GIT_CA_BUNDLE:}
     local-repos-root: ${SAYTU_LOCAL_REPOS_ROOT:}
     use-system-proxy: ${SAYTU_GIT_USE_SYSTEM_PROXY:true}
+  scan:
+    worker:
+      # only the "worker" service of Docker Compose sets it: the API process never runs scanners
+      enabled: ${SAYTU_WORKER_ENABLED:false}
+      id: ${SAYTU_WORKER_ID:}
+      max-parallel-jobs: ${SAYTU_WORKER_MAX_PARALLEL_JOBS:2}
+      poll-interval: ${SAYTU_WORKER_POLL_INTERVAL:PT5S}
+      lease: ${SAYTU_WORKER_LEASE:PT5M}
+      work-dir: ${SAYTU_WORKER_WORK_DIR:/var/lib/saytu/work}
+    tools:
+      trivy-cache-dir: ${SAYTU_TRIVY_CACHE_DIR:/var/lib/saytu/trivy}
+      trivy-db-auto-update: ${SAYTU_TRIVY_DB_AUTO_UPDATE:true}
+      trivy-db-repository: ${SAYTU_TRIVY_DB_REPOSITORY:}
+      trivy-db-update-interval: ${SAYTU_TRIVY_DB_UPDATE_INTERVAL:PT12H}
+      opengrep-runtime: ${SAYTU_OPENGREP_RUNTIME:/opt/saytu/tools/opengrep-runtime}
+    checkout:
+      timeout: ${SAYTU_CHECKOUT_TIMEOUT:PT10M}
+      max-mb: ${SAYTU_CHECKOUT_MAX_MB:2048}
+      max-files: ${SAYTU_CHECKOUT_MAX_FILES:500000}
 
 springdoc:
   api-docs:

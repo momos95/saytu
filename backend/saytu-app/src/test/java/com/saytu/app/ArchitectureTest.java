@@ -28,6 +28,13 @@ class ArchitectureTest {
             .because("saytu-git handles tokens and talks to external hosts: no transitive dependency (ADR-0005)");
 
     @ArchTest
+    static final ArchRule scanEngineIsFrameworkFree = noClasses()
+            .that().resideInAPackage("com.saytu.scan..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "org.springframework..", "jakarta..", "org.hibernate..", "com.fasterxml..", "com.saytu.app..")
+            .because("saytu-scan runs untrusted repositories through external tools: JDK only, like saytu-git");
+
+    @ArchTest
     static final ArchRule onlyTheVaultUsesTheCipher = noClasses()
             .that().resideInAPackage("com.saytu.app..")
             .and().resideOutsideOfPackages("com.saytu.app.vault..", "com.saytu.app.web..",

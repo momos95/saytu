@@ -30,6 +30,29 @@ public class ScannerConfigService {
         return repository.findAllByOrderByScannerIdAsc().stream().map(ScannerView::of).toList();
     }
 
+    /** Configuration read by the worker before each job. */
+    @Transactional(readOnly = true)
+    public List<RuntimeConfig> runtimeConfigs() {
+        return repository.findAllByOrderByScannerIdAsc().stream()
+                .map(e -> new RuntimeConfig(e.getScannerId(), e.isEnabled(), e.toResourceLimits(), stringSettings(e.getSettings())))
+                .toList();
+    }
+
+    private static Map<String, String> stringSettings(Map<String, Object> settings) {
+        Map<String, String> out = new java.util.HashMap<>();
+        settings.forEach((k, v) -> {
+            if (k != null && v != null) {
+                out.put(k, String.valueOf(v));
+            }
+        });
+        return Map.copyOf(out);
+    }
+
+    /** Scanner settings as the scan engine consumes them. */
+    public record RuntimeConfig(String scannerId, boolean enabled, com.saytu.core.scan.ResourceLimits limits,
+                                Map<String, String> settings) {
+    }
+
     @Transactional
     public ScannerView update(String scannerId, ScannerUpdate update) {
         ScannerConfigEntity entity = repository.findById(scannerId)
