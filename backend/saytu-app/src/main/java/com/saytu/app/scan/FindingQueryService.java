@@ -5,6 +5,7 @@ import com.saytu.app.scan.ScanViews.FindingPage;
 import com.saytu.app.scan.ScanViews.FindingView;
 import com.saytu.app.scan.ScanViews.OccurrenceView;
 import com.saytu.app.scan.ScanViews.PageView;
+import com.saytu.app.scan.ScanViews.StatusChangeView;
 import com.saytu.app.web.ResourceNotFoundException;
 import com.saytu.core.domain.FindingStatus;
 import com.saytu.core.domain.FindingType;
@@ -25,7 +26,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-/** Read side of findings (list with filters, detail). Triage arrives with the findings pages (phase 6). */
+/** Read side of findings (list with filters, detail with occurrences and triage history). */
 @Service
 public class FindingQueryService {
 
@@ -96,7 +97,7 @@ public class FindingQueryService {
                 FINDING_MAPPER.mapRow(rs, i), rs.getString("description"), rs.getString("evidence_redacted"),
                 rs.getString("recommendation"), JdbcRows.strings(rs, "references_urls"), rs.getString("cvss_vector"),
                 rs.getString("package_ecosystem"), JdbcRows.instant(rs, "resolved_at"), rs.getString("status_reason"),
-                rs.getString("status_changed_by"), JdbcRows.instant(rs, "status_changed_at"), List.of()));
+                rs.getString("status_changed_by"), JdbcRows.instant(rs, "status_changed_at"), List.of(), List.of()));
         if (found.isEmpty()) {
             throw new ResourceNotFoundException("Finding " + findingId + " not found");
         }
@@ -104,10 +105,13 @@ public class FindingQueryService {
                 rs.getString("scanner_id"), rs.getString("rule_id"), rs.getString("reported_severity"),
                 rs.getString("file_path"), JdbcRows.integer(rs, "start_line"), JdbcRows.instant(rs, "detected_at"),
                 JdbcRows.uuid(rs, "scan_job_id")));
+        List<StatusChangeView> history = jdbc.query(InsightSql.STATUS_HISTORY, p, (rs, i) -> new StatusChangeView(
+                rs.getString("from_status"), rs.getString("to_status"), rs.getString("reason"), rs.getString("changed_by"),
+                JdbcRows.instant(rs, "changed_at")));
         FindingDetail d = found.getFirst();
         return new FindingDetail(d.finding(), d.description(), d.evidence(), d.recommendation(), d.references(),
                 d.cvssVector(), d.packageEcosystem(), d.resolvedAt(), d.statusReason(), d.statusChangedBy(),
-                d.statusChangedAt(), occurrences);
+                d.statusChangedAt(), occurrences, history);
     }
 
     static MapSqlParameterSource filterParams(Filter f) {

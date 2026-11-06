@@ -72,6 +72,13 @@ de PyPI (SQLFluff), d'un clone Git vérifié par commit (PHP_CodeSniffer) et d'U
 Le dépôt `opengrep/opengrep-rules`, envisagé en phase 1, n'a pas été retenu : la seule source
 « opengrep-rules » trouvée avec une licence explicite est celle d'Aikido, qui ne contient que 2 règles.
 
+## Rapports (phase 6)
+
+Aucun composant ajouté : PDF, HTML, JSON et SARIF sont produits par du code SAYTU (Apache-2.0,
+`saytu-core/report`). Le PDF utilise les polices standard PDF (Helvetica, Courier), référencées et
+non embarquées : aucun fichier de police n'est distribué. Le schéma SARIF 2.1.0 est un standard OASIS ;
+SAYTU n'en embarque pas de copie.
+
 ## Modèles IA (phase 7, optionnels)
 
 Chaque modèle a sa propre licence, indépendante d'Ollama. Retenir par défaut des modèles sous

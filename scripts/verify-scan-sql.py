@@ -242,5 +242,68 @@ try:
 except RuntimeError:
     check(True, "labels must be a JSON array (ck_repository_languages)")
 
+print("== triage (phase 6)")
+fid2 = r2[0][0]
+check(run("LOCK_FINDING", {"findingId": fid2})[0] == [["OPEN"]], "finding status read for update")
+tri = {"findingId": fid2, "status": "ACCEPTED_RISK", "reason": "compensating control", "user": "awa",
+       "fromStatus": "OPEN", "toStatus": "ACCEPTED_RISK"}
+before = int(q(f"SELECT version FROM finding WHERE id = '{fid2}'")[0][0])
+run("UPDATE_FINDING_STATUS", tri); run("INSERT_STATUS_HISTORY", tri)
+check(q(f"SELECT status, status_reason, status_changed_by, version FROM finding WHERE id = '{fid2}'")
+      == [["ACCEPTED_RISK", "compensating control", "awa", str(before + 1)]], "status, reason, author updated, version incremented")
+hist = run("STATUS_HISTORY", {"findingId": fid2})[0]
+check(len(hist) == 2 and hist[0][1] == "RESOLVED" and hist[1][:4] == ["OPEN", "ACCEPTED_RISK", "compensating control", "awa"],
+      "history oldest first (scanner resolution, then triage)")
+try:
+    run("UPDATE_FINDING_STATUS", dict(tri, status="FALSE_POSITIVE", reason=None))
+    check(False, "triage without reason refused")
+except RuntimeError:
+    check(True, "triage without reason refused by ck_finding_triage_reason")
+f2b = finding(fp2, "opengrep", "weak-hash", "MEDIUM", cwes=("CWE-328",), cvss=7.5); f2b["jobId"] = job3
+run("UPSERT_FINDING", f2b)
+check(q(f"SELECT status FROM finding WHERE id = '{fid2}'") == [["ACCEPTED_RISK"]], "accepted risk kept when the scanner reports it again")
+reopen = dict(tri, status="OPEN", reason=None, fromStatus="ACCEPTED_RISK", toStatus="OPEN")
+run("UPDATE_FINDING_STATUS", reopen); run("INSERT_STATUS_HISTORY", reopen)
+check(q(f"SELECT status, status_reason FROM finding WHERE id = '{fid2}'") == [["OPEN", ""]], "reopened without reason")
+
+print("== dashboard and repository detail (phase 6)")
+c = run("DASHBOARD_COUNTERS")[0][0]
+check(c[0] == "2" and c[1] == "2" and c[2] == "3" and c[3] == "0" and c[4] == "1" and c[5] != "", "counters: audited repos, open findings, triaged, last audit: " + str(c))
+sev = run("OPEN_BY_SEVERITY_TYPE", {"repositoryId": None})[0]
+check(sorted(sev) == [["MEDIUM", "SECURITY", "2"]], "open findings by severity and type: " + str(sev))
+check(run("OPEN_BY_SEVERITY_TYPE", {"repositoryId": repo2})[0] == [], "filtered by repository")
+q(f"UPDATE source_repository SET removed_at = now() WHERE id = '{repo2}'")
+check(run("OPEN_BY_SEVERITY_TYPE", {"repositoryId": None})[0] == sev, "removed repositories ignored")
+q(f"UPDATE source_repository SET removed_at = NULL WHERE id = '{repo2}'")
+q("INSERT INTO score_snapshot (scope_type, security_score, quality_score, global_score, coverage_percent, reliability, formula_version, computed_at) "
+  "VALUES ('GLOBAL', 40, 60, 48, 100, 'HIGH', 'v1', now() - interval '3 days'), ('GLOBAL', 45, 60, 51, 100, 'HIGH', 'v1', now() - interval '3 days' + interval '1 minute'), "
+  "('GLOBAL', 10, 10, 10, 100, 'HIGH', 'v1', now() - interval '200 days')")
+trend = run("SCORE_TREND", {"scopeType": "GLOBAL", "repositoryId": None, "days": 90})[0]
+check(len(trend) == 2 and trend[0][1] == "45.00" and trend[-1][1] == "81.87", "one point per day (last of the day), 90 days: " + str([t[:2] for t in trend]))
+check(len(run("SCORE_TREND", {"scopeType": "REPOSITORY", "repositoryId": repo, "days": 90})[0]) == 1, "repository trend")
+flow = run("WEEKLY_FLOW", {"repositoryId": None})[0]
+check(len(flow) == 12 and sum(int(r[1]) for r in flow) == 3, "12 weeks, 3 findings opened: " + str([r[1:] for r in flow]))
+check(len(run("WEEKLY_FLOW", {"repositoryId": repo2})[0]) == 12, "weekly flow of a repository")
+prio = run("PRIORITY_REPOSITORIES", {"limit": 10})[0]
+check(len(prio) == 1 and prio[0][1] == "acme/api" and prio[0][6] == "2" and prio[0][9] == "85.32", "priority repositories with open counts and score: " + str(prio))
+info = run("REPOSITORY_INFO", {"repositoryId": repo})[0]
+check(len(info) == 1 and info[0][1] == "acme/api" and info[0][12] == "acme" and info[0][14] == "GITLAB", "repository info with organisation and platform")
+check(sorted(run("OPEN_BY_BRANCH", {"repositoryId": repo})[0]) == [["main", "MEDIUM", "SECURITY", "2"]], "open findings per branch")
+rules = run("TOP_RULES", {"repositoryId": repo})[0]
+check(len(rules) == 2 and rules[0][4] == "2", "frequent rules with severity rank: " + str(rules))
+check(len(run("RECENT_JOBS", {"repositoryId": repo})[0]) == 2, "recent jobs of the repository")
+
+print("== reports (phase 6)")
+rep = run("REPORT_FINDINGS", dict(base, statuses=["OPEN"], limit=100))[0]
+check(len(rep) == 2 and all(len(r[-1]) == 64 for r in rep), "report findings with fingerprint")
+check(len(run("REPORT_FINDINGS", dict(base, limit=1))[0]) == 1, "report limit")
+scans = run("REPORT_SCANS", {"repositoryId": repo, "branch": None})[0]
+check(len(scans) == 1 and scans[0][2] == "main" and scans[0][3] == "a" * 40, "latest finished analysis per branch: " + str([s[:4] for s in scans]))
+check(len(run("REPORT_SCANS", {"repositoryId": None, "branch": "main"})[0]) == 2, "all repositories, one branch")
+ex = run("REPORT_EXECUTIONS", {"jobIds": [scans[0][0]]})[0]
+check([e[1] for e in ex] == ["opengrep", "trivy"] and ex[1][2] == "FAILED", "tool runs of those analyses")
+run("INSERT_REPORT", {"format": "PDF", "sha256": "f" * 64, "size": 1234, "filters": '{"status": ["OPEN"]}', "user": "awa"})
+check(q("SELECT format, status, created_by FROM report") == [["PDF", "READY", "awa"]], "report generation recorded")
+
 print(f"== {'all scan SQL checks passed' if failures == 0 else str(failures) + ' FAILED'}")
 sys.exit(1 if failures else 0)

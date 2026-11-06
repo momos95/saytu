@@ -10,22 +10,16 @@ export interface NavItem {
 }
 
 /**
- * The ten pages of the specification. Pages not delivered yet are routed placeholders that state
- * which phase delivers them.
+ * Side menu. The detail pages (a repository, a vulnerability) are reached from the lists, not from the
+ * menu. Pages not delivered yet are routed placeholders that state which phase delivers them.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { path: 'dashboard', label: 'Tableau de bord', icon: '◧',
-    data: { title: 'Tableau de bord', phase: 6, summary: 'Scores sécurité / qualité / global, répartition par criticité, tendances et dépôts prioritaires.' } },
+  { path: 'dashboard', label: 'Tableau de bord', icon: '◧' },
   { path: 'connections', label: 'Connexions Git', icon: '⇄' },
   { path: 'repositories', label: 'Organisations & dépôts', icon: '▤' },
   { path: 'scan-settings', label: 'Scanners & branches', icon: '⚙' },
   { path: 'audits', label: 'Audits', icon: '▶' },
-  { path: 'repositories/detail', label: 'Détail dépôt', icon: '◫',
-    data: { title: 'Détail d’un dépôt', phase: 6, summary: 'Scores par branche, couverture, historique et vulnérabilités du dépôt.' } },
-  { path: 'findings', label: 'Vulnérabilités', icon: '⚑',
-    data: { title: 'Vulnérabilités', phase: 6, summary: 'Liste filtrable par sévérité, type, scanner, statut, dépôt et branche. En attendant, les résultats de chaque branche sont visibles depuis la page Audits.' } },
-  { path: 'findings/detail', label: 'Détail vulnérabilité', icon: '◉',
-    data: { title: 'Détail d’une vulnérabilité', phase: 7, summary: 'Preuve expurgée, CWE / CVE / CVSS, recommandations déterministes et IA locale optionnelle.' } },
+  { path: 'findings', label: 'Vulnérabilités', icon: '⚑' },
   { path: 'settings', label: 'Utilisateurs & paramètres', icon: '☰',
     data: { title: 'Utilisateurs et paramètres', phase: 7, summary: 'Rôles ADMIN / AUDITOR / VIEWER, planification, webhooks et paramètres de scoring.' } },
 ];

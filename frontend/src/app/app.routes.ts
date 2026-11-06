@@ -32,6 +32,26 @@ export const routes: Routes = [
         loadComponent: () => import('./features/scan-settings/scan-settings-page').then(m => m.ScanSettingsPage),
       },
       {
+        path: 'dashboard',
+        title: 'Tableau de bord · SAYTU',
+        loadComponent: () => import('./features/dashboard/dashboard-page').then(m => m.DashboardPage),
+      },
+      {
+        path: 'repositories/:id',
+        title: 'Dépôt · SAYTU',
+        loadComponent: () => import('./features/repository-detail/repository-detail-page').then(m => m.RepositoryDetailPage),
+      },
+      {
+        path: 'findings',
+        title: 'Vulnérabilités · SAYTU',
+        loadComponent: () => import('./features/findings/findings-page').then(m => m.FindingsPage),
+      },
+      {
+        path: 'findings/:id',
+        title: 'Vulnérabilité · SAYTU',
+        loadComponent: () => import('./features/findings/finding-detail-page').then(m => m.FindingDetailPage),
+      },
+      {
         path: 'audits',
         title: 'Audits · SAYTU',
         loadComponent: () => import('./features/audits/audits-page').then(m => m.AuditsPage),

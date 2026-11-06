@@ -42,8 +42,8 @@ describe('Shell', () => {
 
   it('routes pages not delivered yet to a placeholder stating their phase', async () => {
     const harness = await RouterTestingHarness.create();
-    await harness.navigateByUrl('/audits');
-    expect(harness.routeNativeElement?.querySelector('[data-testid="phase-badge"]')?.textContent).toContain('Phase 4');
+    await harness.navigateByUrl('/settings');
+    expect(harness.routeNativeElement?.querySelector('[data-testid="phase-badge"]')?.textContent).toContain('Phase 7');
   });
 
   it('starts sign-in instead of rendering protected pages when signed out', async () => {

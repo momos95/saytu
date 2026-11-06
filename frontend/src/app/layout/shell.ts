@@ -26,7 +26,7 @@ import { AuthService } from '../core/auth/auth.service';
         <ul>
           @for (item of navItems; track item.path) {
             <li>
-              <a [routerLink]="'/' + item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+              <a [routerLink]="'/' + item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: false }"
                  (click)="menuOpen.set(false)">
                 <span class="icon" aria-hidden="true">{{ item.icon }}</span>{{ item.label }}
               </a>

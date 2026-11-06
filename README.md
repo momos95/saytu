@@ -4,11 +4,11 @@ Plateforme **on-premise** et open source d'audit automatisé de la sécurité et
 code, multi-organisations et multi-dépôts (GitLab, GitHub, Bitbucket, dépôts locaux).
 Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre infrastructure.
 
-> **État : phase 5 / 8** — connexion via Keycloak, connexions Git chiffrées, découverte des
-> organisations, dépôts et branches, et **audits réels** dans un worker isolé : Opengrep (SAST),
-> Trivy (dépendances, configuration), Gitleaks (secrets), puis l'outil de qualité adapté à chaque
-> langage détecté (Checkstyle + PMD pour Java, ESLint pour TS/JS, PHP_CodeSniffer, Cppcheck pour C/C++,
-> SQLFluff). Scores sécurité / qualité / global avec couverture. Tableau de bord et rapports : phase 6. Détail : [docs/roadmap.md](docs/roadmap.md).
+> **État : phase 6 / 8** — connexion via Keycloak, connexions Git chiffrées, découverte des
+> organisations, dépôts et branches, **audits réels** dans un worker isolé (Opengrep, Trivy, Gitleaks et
+> l'outil de qualité de chaque langage détecté), scores avec couverture, **tableau de bord**, liste
+> filtrable des vulnérabilités avec triage, détail d'un dépôt et rapports **PDF, HTML, JSON, SARIF**.
+> Planification, alertes et IA locale : phase 7. Détail : [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
 
@@ -20,6 +20,7 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 | [docs/licenses.md](docs/licenses.md) | licences des composants et des règles |
 | [docs/git-connections.md](docs/git-connections.md) | créer les tokens GitLab, GitHub, Bitbucket ; lire un résultat de test |
 | [docs/security.md](docs/security.md) | mesures de sécurité et risques résiduels |
+| [docs/reports.md](docs/reports.md) | rapports PDF / HTML / JSON / SARIF, tableau de bord, triage |
 | [docs/scoring.md](docs/scoring.md) | formule des scores, couverture, fiabilité, outils par langage |
 | [docs/operations.md](docs/operations.md) | exploitation des audits : base Trivy (en ligne / hors ligne), packs de règles, reprises |
 | [docs/install-windows.md](docs/install-windows.md) | installation sur Windows avec WSL 2 et Docker Engine |

@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { AppRole } from '../../core/auth/oidc';
 import { fakeTokens } from '../../testing/fake-session';
@@ -17,7 +18,7 @@ describe('AuditsPage', () => {
   function render(roles: AppRole[]) {
     TestBed.configureTestingModule({
       imports: [AuditsPage],
-      providers: [provideZonelessChangeDetection(), provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     });
     TestBed.inject(AuthService).setTokensForTesting(fakeTokens(roles));
     http = TestBed.inject(HttpTestingController);

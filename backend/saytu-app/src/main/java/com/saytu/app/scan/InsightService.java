@@ -1,0 +1,186 @@
+package com.saytu.app.scan;
+
+import com.saytu.app.scan.ScanViews.ScanRunView;
+import com.saytu.app.scan.ScoreService.ScoreView;
+import com.saytu.app.web.ResourceNotFoundException;
+import com.saytu.core.domain.FindingType;
+import com.saytu.core.domain.Severity;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Types;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
+
+/** Read models of the dashboard and of the repository detail page. */
+@Service
+public class InsightService {
+
+    static final int TREND_DAYS = 90;
+    static final int PRIORITY_LIMIT = 10;
+
+    private final NamedParameterJdbcTemplate jdbc;
+    private final ScoreService scores;
+    private final ScanService scans;
+
+    public InsightService(NamedParameterJdbcTemplate jdbc, ScoreService scores, ScanService scans) {
+        this.jdbc = jdbc;
+        this.scores = scores;
+        this.scans = scans;
+    }
+
+    public record Counters(long auditedRepositories, long openFindings, long newLast7Days, long resolvedLast7Days,
+                           long triaged, Instant lastAuditAt) {
+    }
+
+    public record TrendPoint(Instant day, Double security, Double quality, Double global, double coverage,
+                             String reliability) {
+    }
+
+    public record FlowPoint(Instant week, long opened, long resolved) {
+    }
+
+    /** score is null when the repository has open findings but no score yet. */
+    public record PriorityRepository(UUID repositoryId, String repository, List<String> languages, long critical,
+                                     long high, long securityFindings, long openFindings, ScoreView score) {
+    }
+
+    /**
+     * @param openBySeverity severity → type → count, every severity and type present (zeros included)
+     */
+    public record Dashboard(ScoreView global, Counters counters, Map<String, Map<String, Long>> openBySeverity,
+                            List<TrendPoint> trend, List<FlowPoint> weeklyFlow, List<PriorityRepository> priorities,
+                            List<ScanRunView> recentRuns) {
+    }
+
+    public record RepositoryInfo(UUID id, String fullName, String name, String webUrl, String defaultBranch,
+                                 String visibility, boolean archived, boolean removed, List<String> languages,
+                                 Instant languagesUpdatedAt, Instant lastActivityAt, UUID namespaceId, String namespace,
+                                 String connectionName, String providerType) {
+    }
+
+    public record BranchOverview(String branch, ScoreView score, Map<String, Long> openBySeverity, long openFindings) {
+    }
+
+    public record RuleCount(String scanner, String ruleId, String title, String severity, long count) {
+    }
+
+    public record JobLine(UUID id, UUID runId, String branch, String status, String commitSha, Instant queuedAt,
+                          Instant startedAt, Instant finishedAt, int findings, int newFindings, int resolvedFindings,
+                          String errorMessage) {
+    }
+
+    public record RepositoryOverview(RepositoryInfo repository, ScoreView score, List<BranchOverview> branches,
+                                     Map<String, Map<String, Long>> openBySeverity, List<TrendPoint> trend,
+                                     List<FlowPoint> weeklyFlow, List<RuleCount> topRules, List<JobLine> recentJobs) {
+    }
+
+    @Transactional(readOnly = true)
+    public Dashboard dashboard() {
+        MapSqlParameterSource none = new MapSqlParameterSource().addValue("repositoryId", null, Types.OTHER);
+        Counters counters = jdbc.queryForObject(InsightSql.DASHBOARD_COUNTERS, new MapSqlParameterSource(), (rs, i) ->
+                new Counters(rs.getLong("audited_repositories"), rs.getLong("open_findings"), rs.getLong("new_last_7_days"),
+                        rs.getLong("resolved_last_7_days"), rs.getLong("triaged"), JdbcRows.instant(rs, "last_audit_at")));
+        List<PriorityRepository> priorities = jdbc.query(InsightSql.PRIORITY_REPOSITORIES,
+                new MapSqlParameterSource("limit", PRIORITY_LIMIT), (rs, i) -> new PriorityRepository(
+                        JdbcRows.uuid(rs, "repository_id"), rs.getString("full_name"),
+                        ScanService.languageLabels(rs.getString("languages")), rs.getLong("critical"), rs.getLong("high"),
+                        rs.getLong("security_findings"), rs.getLong("open_findings"),
+                        rs.getString("reliability") == null ? null : ScoreService.view(rs)));
+        return new Dashboard(scores.summary().global(), counters, openBySeverity(none),
+                trend("GLOBAL", null), flow(null), priorities, scans.list(0, 5).items());
+    }
+
+    @Transactional(readOnly = true)
+    public RepositoryOverview repository(UUID repositoryId) {
+        MapSqlParameterSource p = new MapSqlParameterSource("repositoryId", repositoryId);
+        List<RepositoryInfo> info = jdbc.query(InsightSql.REPOSITORY_INFO, p, (rs, i) -> new RepositoryInfo(
+                JdbcRows.uuid(rs, "id"), rs.getString("full_name"), rs.getString("name"), rs.getString("web_url"),
+                rs.getString("default_branch"), rs.getString("visibility"), rs.getBoolean("archived"),
+                rs.getTimestamp("removed_at") != null, ScanService.languageLabels(rs.getString("languages")),
+                JdbcRows.instant(rs, "languages_updated_at"), JdbcRows.instant(rs, "last_activity_at"),
+                JdbcRows.uuid(rs, "namespace_id"), rs.getString("namespace"), rs.getString("connection_name"),
+                rs.getString("provider_type")));
+        if (info.isEmpty()) {
+            throw new ResourceNotFoundException("Repository " + repositoryId + " not found");
+        }
+        Map<String, ScoreView> branchScores = new LinkedHashMap<>();
+        jdbc.query(ScoreSql.LATEST_BRANCH_SNAPSHOTS, p, rs -> {
+            branchScores.put(rs.getString("branch"), ScoreService.view(rs));
+        });
+        Map<String, Map<String, Long>> openByBranch = new TreeMap<>();
+        jdbc.query(InsightSql.OPEN_BY_BRANCH, p, rs -> {
+            openByBranch.computeIfAbsent(rs.getString("branch"), b -> emptySeverityCounts())
+                    .merge(rs.getString("severity"), rs.getLong("n"), Long::sum);
+        });
+        List<String> branchNames = new ArrayList<>(branchScores.keySet());
+        openByBranch.keySet().stream().filter(b -> !branchScores.containsKey(b)).forEach(branchNames::add);
+        branchNames.sort(String::compareTo);
+        List<BranchOverview> branches = branchNames.stream().map(b -> {
+            Map<String, Long> open = openByBranch.getOrDefault(b, emptySeverityCounts());
+            return new BranchOverview(b, branchScores.get(b), open, open.values().stream().mapToLong(Long::longValue).sum());
+        }).toList();
+        List<TrendPoint> trend = trend("REPOSITORY", repositoryId);
+        List<RuleCount> rules = jdbc.query(InsightSql.TOP_RULES, p, (rs, i) -> new RuleCount(rs.getString("scanner_id"),
+                rs.getString("rule_id"), rs.getString("title"), Severity.values()[rs.getInt("severity_rank")].name(),
+                rs.getLong("n")));
+        List<JobLine> jobs = jdbc.query(InsightSql.RECENT_JOBS, p, (rs, i) -> new JobLine(JdbcRows.uuid(rs, "id"),
+                JdbcRows.uuid(rs, "scan_run_id"), rs.getString("branch"), rs.getString("status"), rs.getString("commit_sha"),
+                JdbcRows.instant(rs, "queued_at"), JdbcRows.instant(rs, "started_at"), JdbcRows.instant(rs, "finished_at"),
+                rs.getInt("findings_count"), rs.getInt("new_findings"), rs.getInt("resolved_findings"),
+                rs.getString("error_message")));
+        ScoreView latest = scores.summary().repositories().stream().filter(r -> r.repositoryId().equals(repositoryId))
+                .map(ScoreService.RepositoryScore::score).findFirst().orElse(null);
+        return new RepositoryOverview(info.getFirst(), latest, branches, openBySeverity(p), trend, flow(repositoryId),
+                rules, jobs);
+    }
+
+    private Map<String, Map<String, Long>> openBySeverity(MapSqlParameterSource p) {
+        Map<String, Map<String, Long>> result = new LinkedHashMap<>();
+        for (Severity s : Severity.values()) {
+            Map<String, Long> byType = new LinkedHashMap<>();
+            for (FindingType t : FindingType.values()) {
+                byType.put(t.name(), 0L);
+            }
+            result.put(s.name(), byType);
+        }
+        jdbc.query(InsightSql.OPEN_BY_SEVERITY_TYPE, p, rs -> {
+            result.get(rs.getString("severity")).put(rs.getString("type"), rs.getLong("n"));
+        });
+        return result;
+    }
+
+    private List<TrendPoint> trend(String scopeType, UUID repositoryId) {
+        MapSqlParameterSource p = new MapSqlParameterSource().addValue("scopeType", scopeType)
+                .addValue("repositoryId", repositoryId, Types.OTHER).addValue("days", TREND_DAYS);
+        return jdbc.query(InsightSql.SCORE_TREND, p, (rs, i) -> trendPoint(rs));
+    }
+
+    private static TrendPoint trendPoint(ResultSet rs) throws SQLException {
+        ScoreView v = ScoreService.view(rs);
+        return new TrendPoint(JdbcRows.instant(rs, "day"), v.security(), v.quality(), v.global(), v.coverage(),
+                v.reliability());
+    }
+
+    private List<FlowPoint> flow(UUID repositoryId) {
+        return jdbc.query(InsightSql.WEEKLY_FLOW, new MapSqlParameterSource().addValue("repositoryId", repositoryId, Types.OTHER),
+                (rs, i) -> new FlowPoint(JdbcRows.instant(rs, "week"), rs.getLong("opened"), rs.getLong("resolved")));
+    }
+
+    private static Map<String, Long> emptySeverityCounts() {
+        Map<String, Long> m = new LinkedHashMap<>();
+        for (Severity s : Severity.values()) {
+            m.put(s.name(), 0L);
+        }
+        return m;
+    }
+}

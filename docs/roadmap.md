@@ -7,7 +7,7 @@
 | 3 | Découverte organisations / dépôts / branches, sélection, configuration des branches | ✅ livrée (voir détail) |
 | 4 | Worker, file d'exécution, sandbox, clone sécurisé, Opengrep, Trivy, Gitleaks | ✅ livrée (voir détail) |
 | 5 | Détection des langages, outils de qualité par langage (Checkstyle, PMD, ESLint, PHPCS, Cppcheck, SQLFluff), scoring et couverture | ✅ livrée (voir détail) |
-| 6 | Dashboard Angular, détail dépôt, liste/détail des vulnérabilités, rapports HTML/PDF/JSON/SARIF | à faire |
+| 6 | Dashboard Angular, détail dépôt, liste/détail des vulnérabilités et triage, rapports HTML/PDF/JSON/SARIF | ✅ livrée (voir détail) |
 | 7 | Planification cron, historique, comparaison de scans, webhooks, recommandations, Ollama | à faire |
 | 8 | Durcissement, tests de bout en bout, SBOM, guides d'exploitation et de mise à jour hors ligne | à faire |
 
@@ -33,6 +33,42 @@ chiffrement) : une installation existante doit être réinitialisée.
 **Avec Docker Compose** : `docker compose down -v`, renommer les variables `ACS_*` en `SAYTU_*` dans
 `.env` (ou le regénérer avec `scripts/generate-secrets.sh` après l'avoir supprimé), puis
 `docker compose up -d --build`.
+
+## Phase 6 — détail (6 novembre 2026)
+
+### Livré et vérifié dans l'environnement de développement
+* Rapports (`saytu-core/report`, JDK seul, sans dépendance) : JSON `saytu-report/1`, SARIF 2.1.0,
+  HTML autonome, PDF — **7 tests** (`ReportWritersTest`) ; le PDF de test (120 vulnérabilités,
+  26 pages) passe `qpdf --check`, son texte extrait par `pdftotext` contient les accents ; JSON et
+  SARIF relus par `python3 -m json`.
+* SQL du tableau de bord, du détail dépôt, des rapports et du triage (`InsightSql`) : ajoutés à
+  `scripts/verify-scan-sql.sh` — **90 contrôles réussis sur PostgreSQL 16** (dont : triage sans
+  justification refusé par la base, risque accepté conservé quand le scanner le retrouve, dépôts retirés
+  ignorés, une valeur par jour dans l'évolution).
+* `saytu-core` **70/70**, `saytu-git` **89/89**, `saytu-scan` **42/42** ; règles de triage et de rapport
+  (`TriageAndReportRulesTest`) **3/3** contre des souches Spring.
+* Frontend : logique des filtres (URL ↔ API), répartitions, courbes (trous quand le score manque),
+  barres, nom de fichier des rapports — **19 specs exécutées dans Node, 19 réussies**.
+
+### Livré, écrit pour compiler, **non exécuté ici**
+* Spring : `InsightService` / `InsightController` (`/dashboard`, `/repositories/{id}/overview`),
+  `FindingTriageService` (`PUT /findings/{id}/status`), `ReportService` / `ReportController`
+  (`/reports/findings`) ; `FindingAndReportControllerSecurityTest` (rôles, en-têtes de
+  téléchargement). Le paquet `app.scan` compile avec `-Werror` contre des souches.
+* Angular : pages Tableau de bord, Vulnérabilités (filtres dans l'URL, pagination), détail d'une
+  vulnérabilité (preuve, recommandation, références, détections, historique, triage), détail d'un
+  dépôt (branches, règles fréquentes, jobs, « Auditer ce dépôt »), boutons de rapport ; specs TestBed.
+  Les liens des pages Audits et Organisations & dépôts mènent aux détails.
+
+### Limites connues de la phase 6
+* Le triage modifie le score au **prochain** audit de la branche, pas immédiatement.
+* PDF : polices standard non embarquées ; caractères hors Latin-1 remplacés par « ? » (intacts en
+  HTML / JSON / SARIF). 2 000 vulnérabilités détaillées au plus en PDF / HTML.
+* Pas de triage en masse ni de commentaires sur une vulnérabilité.
+* Les rapports ne sont pas conservés côté serveur (seule leur trace l'est) ; pas d'envoi programmé
+  (phase 7 avec la planification).
+* Recommandations : celles des scanners uniquement ; l'explication détaillée par IA locale arrive en
+  phase 7.
 
 ## Phase 5 — détail (5 novembre 2026)
 

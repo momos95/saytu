@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, injec
 import { AuthService } from '../../core/auth/auth.service';
 import { errorMessage } from '../connections/connections.api';
 import { PageView } from '../repositories/sources.model';
+import { RouterLink } from '@angular/router';
 import { LanguageChips, ScoreBadges } from '../../shared/score-badges';
 import { AuditsApi } from './audits.api';
 import {
@@ -25,7 +26,7 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
 /** Page 6: launch audits, follow their progress per branch and scanner, look at the results. */
 @Component({
   selector: 'saytu-audits-page',
-  imports: [DatePipe, LanguageChips, ScoreBadges],
+  imports: [DatePipe, RouterLink, LanguageChips, ScoreBadges],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="page-header">
@@ -102,7 +103,7 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
           @for (j of d.jobs; track j.id) {
             <li class="job" data-testid="job">
               <div class="row">
-                <span class="name">{{ j.repositoryName }} <span class="branch">⎇ {{ j.branch }}</span></span>
+                <span class="name"><a [routerLink]="['/repositories', j.repositoryId]">{{ j.repositoryName }}</a> <span class="branch">⎇ {{ j.branch }}</span></span>
                 <span class="status" [attr.data-status]="j.status">{{ statusLabel(j.status) }}</span>
               </div>
               <p class="muted meta">
@@ -144,7 +145,7 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
                       @for (x of f.page.items; track x.id) {
                         <tr>
                           <td><span class="sev" [attr.data-severity]="x.severity">{{ severityLabel(x.severity) }}</span></td>
-                          <td>{{ x.title }}<br /><span class="muted small">{{ x.ruleId }}@if (x.cwes.length) { · {{ x.cwes.join(', ') }} }</span></td>
+                          <td><a [routerLink]="['/findings', x.id]">{{ x.title }}</a><br /><span class="muted small">{{ x.ruleId }}@if (x.cwes.length) { · {{ x.cwes.join(', ') }} }</span></td>
                           <td class="loc">{{ where(x) }}</td>
                           <td>{{ scannerNames(x.scanners) }}</td>
                         </tr>
@@ -152,7 +153,8 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
                     </tbody>
                   </table>
                   @if (f.page.totalElements > f.page.items.length) {
-                    <p class="muted small">{{ f.page.items.length }} premiers résultats affichés (liste complète et filtres : page Vulnérabilités, phase 6).</p>
+                    <p class="muted small">{{ f.page.items.length }} premiers résultats affichés —
+                      <a routerLink="/findings" [queryParams]="{ repositoryId: j.repositoryId, branch: j.branch, status: 'OPEN' }">liste complète et filtres</a>.</p>
                   }
                 } @else {
                   <p class="muted small">Chargement…</p>
@@ -197,6 +199,7 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
     .executions li[data-tone="muted"] { color: var(--saytu-muted); }
     .notes summary { cursor: pointer; }
     .findings { width: 100%; border-collapse: collapse; font-size: .85rem; display: block; overflow-x: auto; }
+    a { color: var(--saytu-accent); text-decoration: none; }
     .findings th, .findings td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--saytu-border); vertical-align: top; }
     .loc { overflow-wrap: anywhere; font-family: ui-monospace, monospace; font-size: .8rem; }
     .sev { font-weight: 600; font-size: .78rem; }

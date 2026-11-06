@@ -109,7 +109,7 @@ ArchUnit, `ArchitectureTest`).
 | module `saytu-scan` (JDK seul) | `ProcessSandbox`, `GitCheckout`, adaptateurs Opengrep / Trivy / Gitleaks, `ScanJobRunner` | ✅ phase 4 |
 | `app.scanners.*` **[phases 4-5]** | adaptateurs `ScannerAdapter` | — |
 | `app.scan` (`ScoreService`) | snapshots de scores ; calcul pur dans `saytu-core/scoring` | — |
-| `app.report` **[phase 6]** | HTML, PDF, JSON, SARIF | — |
+| `app.scan` (`ReportService`, `InsightService`) + `saytu-core/report` | rapports HTML, PDF, JSON, SARIF (sans dépendance) ; tableau de bord, détail dépôt, triage | — |
 | `app.schedule`, `app.alert`, `app.remediation` **[phase 7]** | cron, webhooks, recommandations | — |
 
 Un **même artefact** sert l'API et le worker (profils Spring `api` / `worker`) : une seule base de

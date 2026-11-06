@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { errorMessage } from '../connections/connections.api';
+import { RouterLink } from '@angular/router';
 import { LanguageChips, ScoreBadges } from '../../shared/score-badges';
 import { ScoreView } from '../audits/audits.model';
 import { SourcesApi } from './sources.api';
@@ -8,7 +9,7 @@ import { Namespace, PageView, Repository } from './sources.model';
 /** Paginated, searchable repositories of one namespace, with selection checkboxes (ADMIN). */
 @Component({
   selector: 'saytu-namespace-repositories',
-  imports: [LanguageChips, ScoreBadges],
+  imports: [RouterLink, LanguageChips, ScoreBadges],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="toolbar">
@@ -36,7 +37,7 @@ import { Namespace, PageView, Repository } from './sources.model';
                 <input type="checkbox" [checked]="r.selected || namespace().includeAllRepositories"
                        [disabled]="!canEdit() || namespace().includeAllRepositories || busy()"
                        (change)="toggle(r, $any($event.target).checked)" />
-                <span class="name">{{ r.fullName }}</span>
+                <a class="name" [routerLink]="['/repositories', r.id]">{{ r.fullName }}</a>
               </label>
               <span class="tags">
                 @if (r.defaultBranch) { <span class="tag">{{ r.defaultBranch }}</span> }
@@ -70,7 +71,7 @@ import { Namespace, PageView, Repository } from './sources.model';
     .repos li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px; padding: 6px 0;
                 border-top: 1px solid var(--saytu-border); }
     label { display: flex; gap: 8px; align-items: center; min-width: 0; }
-    .name { overflow-wrap: anywhere; }
+    .name { overflow-wrap: anywhere; color: var(--saytu-accent); text-decoration: none; }
     .tags { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
     .score-line { flex-basis: 100%; padding-left: 26px; }
     .tag { font-size: .72rem; padding: .05rem .45rem; border-radius: 999px; background: var(--saytu-hover); }
