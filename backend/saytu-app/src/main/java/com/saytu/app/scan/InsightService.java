@@ -50,7 +50,7 @@ public class InsightService {
     }
 
     /** score is null when the repository has open findings but no score yet. */
-    public record PriorityRepository(UUID repositoryId, String repository, List<String> languages, long critical,
+    public record RepositoryPriority(UUID repositoryId, String repository, List<String> languages, long critical,
                                      long high, long securityFindings, long openFindings, ScoreView score) {
     }
 
@@ -58,7 +58,7 @@ public class InsightService {
      * @param openBySeverity severity → type → count, every severity and type present (zeros included)
      */
     public record Dashboard(ScoreView global, Counters counters, Map<String, Map<String, Long>> openBySeverity,
-                            List<TrendPoint> trend, List<FlowPoint> weeklyFlow, List<PriorityRepository> priorities,
+                            List<TrendPoint> trend, List<FlowPoint> weeklyFlow, List<RepositoryPriority> priorities,
                             List<ScanRunView> recentRuns) {
     }
 
@@ -90,8 +90,8 @@ public class InsightService {
         Counters counters = jdbc.queryForObject(InsightSql.DASHBOARD_COUNTERS, new MapSqlParameterSource(), (rs, i) ->
                 new Counters(rs.getLong("audited_repositories"), rs.getLong("open_findings"), rs.getLong("new_last_7_days"),
                         rs.getLong("resolved_last_7_days"), rs.getLong("triaged"), JdbcRows.instant(rs, "last_audit_at")));
-        List<PriorityRepository> priorities = jdbc.query(InsightSql.PRIORITY_REPOSITORIES,
-                new MapSqlParameterSource("limit", PRIORITY_LIMIT), (rs, i) -> new PriorityRepository(
+        List<RepositoryPriority> priorities = jdbc.query(InsightSql.PRIORITY_REPOSITORIES,
+                new MapSqlParameterSource("limit", PRIORITY_LIMIT), (rs, i) -> new RepositoryPriority(
                         JdbcRows.uuid(rs, "repository_id"), rs.getString("full_name"),
                         ScanService.languageLabels(rs.getString("languages")), rs.getLong("critical"), rs.getLong("high"),
                         rs.getLong("security_findings"), rs.getLong("open_findings"),

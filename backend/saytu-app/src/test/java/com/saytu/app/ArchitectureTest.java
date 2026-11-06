@@ -55,7 +55,9 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule entitiesStayOutOfTheWebLayer = noClasses()
             .that().haveSimpleNameEndingWith("Controller")
-            .should().dependOnClassesThat().haveSimpleNameEndingWith("Entity")
+            // our JPA entities only: Spring's ResponseEntity is a web type, not a persistence one
+            .should().dependOnClassesThat(com.tngtech.archunit.core.domain.JavaClass.Predicates.simpleNameEndingWith("Entity")
+                    .and(com.tngtech.archunit.core.domain.properties.HasName.Predicates.nameStartingWith("com.saytu.")))
             .orShould().dependOnClassesThat().resideInAPackage("jakarta.persistence..")
             .because("controllers expose DTOs (records), never JPA entities")
             .allowEmptyShould(true);
