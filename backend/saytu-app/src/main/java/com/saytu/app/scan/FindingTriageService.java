@@ -19,7 +19,7 @@ import java.util.UUID;
 
 /**
  * Human triage of a finding. Allowed: OPEN → ACCEPTED_RISK / FALSE_POSITIVE (reason required) and back to
- * OPEN. RESOLVED is decided by the scanners only (a fixed issue that comes back is reopened by the next
+ * OPEN; the branch score is recomputed at once. RESOLVED is decided by the scanners only (a fixed issue that comes back is reopened by the next
  * scan); a triaged finding is never changed by a scan. Every change is kept in finding_status_history
  * and in the audit trail.
  */
@@ -31,11 +31,14 @@ public class FindingTriageService {
     private final NamedParameterJdbcTemplate jdbc;
     private final FindingQueryService queries;
     private final AuditService audit;
+    private final ScoreService scores;
 
-    public FindingTriageService(NamedParameterJdbcTemplate jdbc, FindingQueryService queries, AuditService audit) {
+    public FindingTriageService(NamedParameterJdbcTemplate jdbc, FindingQueryService queries, AuditService audit,
+                                ScoreService scores) {
         this.jdbc = jdbc;
         this.queries = queries;
         this.audit = audit;
+        this.scores = scores;
     }
 
     public record StatusChange(String status, String reason) {
@@ -71,11 +74,14 @@ public class FindingTriageService {
         FindingStatus target = valid.getKey();
         String reason = valid.getValue().isEmpty() ? null : valid.getValue();
         MapSqlParameterSource p = new MapSqlParameterSource("findingId", findingId);
-        List<String> current = jdbc.queryForList(InsightSql.LOCK_FINDING, p, String.class);
+        record Current(String status, UUID repositoryId, String branch) {
+        }
+        List<Current> current = jdbc.query(InsightSql.LOCK_FINDING, p, (rs, i) -> new Current(rs.getString("status"),
+                JdbcRows.uuid(rs, "repository_id"), rs.getString("branch")));
         if (current.isEmpty()) {
             throw new ResourceNotFoundException("Finding " + findingId + " not found");
         }
-        FindingStatus from = FindingStatus.valueOf(current.getFirst());
+        FindingStatus from = FindingStatus.valueOf(current.getFirst().status());
         if (from == FindingStatus.RESOLVED) {
             throw new IllegalArgumentException("Cette vulnérabilité est corrigée : elle sera rouverte automatiquement si un audit la retrouve");
         }
@@ -94,6 +100,8 @@ public class FindingTriageService {
             details.put("reason", reason);
         }
         audit.record("FINDING_STATUS_CHANGED", "finding", findingId.toString(), details);
+        // the score follows the triage at once (accepted risks and false positives no longer count)
+        scores.rescore(current.getFirst().repositoryId(), current.getFirst().branch());
         return queries.get(findingId);
     }
 

@@ -75,6 +75,7 @@ export interface RepositoryOverview {
   trend: TrendPoint[];
   weeklyFlow: FlowPoint[];
   topRules: { scanner: string; ruleId: string; title: string; severity: Severity; count: number }[];
+  actionPlan: ActionPlan;
   recentJobs: {
     id: string;
     runId: string;
@@ -106,6 +107,46 @@ export interface FindingDetail {
   occurrences: { scanner: string; ruleId: string; severity: string; filePath: string | null; startLine: number | null;
                  detectedAt: string; scanJobId: string }[];
   history: { fromStatus: string | null; toStatus: string; reason: string | null; changedBy: string; changedAt: string }[];
+  /** deterministic fix suggestion (RuleBasedRemediationProvider), null if not available */
+  suggestion: Suggestion | null;
+}
+
+export interface Suggestion {
+  providerId: string;
+  topic: string;
+  explanation: string;
+  impact: string;
+  steps: string[];
+  exampleLanguage: string;
+  vulnerableExample: string;
+  fixedCodeExample: string;
+  suggestedTests: string[];
+  references: string[];
+  /** false: only the generic guidance of the category applies */
+  specific: boolean;
+}
+
+export type ActionKind = 'DEPENDENCY_UPGRADE' | 'DEPENDENCY_WITHOUT_FIX' | 'SECRET' | 'CONFIGURATION' | 'CODE';
+
+export interface ActionItem {
+  kind: ActionKind;
+  title: string;
+  target: string;
+  fixedVersion: string | null;
+  severity: Severity;
+  findings: number;
+  securityBefore: number;
+  securityAfter: number;
+  gain: number;
+  exampleFindingId: string;
+  query: Record<string, string>;
+}
+
+export interface ActionPlan {
+  branch: string | null;
+  formulaVersion: string;
+  securityScore: number | null;
+  items: ActionItem[];
 }
 
 /** Filters of the findings list, the reports and the URL (all optional). */

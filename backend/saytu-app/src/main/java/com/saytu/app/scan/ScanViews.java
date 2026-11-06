@@ -1,5 +1,7 @@
 package com.saytu.app.scan;
 
+import com.saytu.core.remediation.RemediationProvider;
+
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -72,7 +74,8 @@ public final class ScanViews {
     public record FindingDetail(FindingView finding, String description, String evidence, String recommendation,
                                 List<String> references, String cvssVector, String packageEcosystem, Instant resolvedAt,
                                 String statusReason, String statusChangedBy, Instant statusChangedAt,
-                                List<OccurrenceView> occurrences, List<StatusChangeView> history) {
+                                List<OccurrenceView> occurrences, List<StatusChangeView> history,
+                                RemediationProvider.Remediation suggestion) {
     }
 
     /** One manual status change (triage), oldest first. */

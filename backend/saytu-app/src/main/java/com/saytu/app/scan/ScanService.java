@@ -142,8 +142,13 @@ public class ScanService {
 
     /** Labels (language keys, most present first) from a scan_job.languages document. */
     static List<String> languageLabels(String json) {
+        return languageProfile(json).labels().stream().map(Language::key).toList();
+    }
+
+    /** Parses scan_job.languages ({"java": {"files": 12, "bytes": 34000}}); empty profile when absent. */
+    static LanguageProfile languageProfile(String json) {
         if (json == null || json.isBlank()) {
-            return List.of();
+            return LanguageProfile.empty();
         }
         JsonNode root = JsonNode.parse(json);
         Map<Language, LanguageProfile.Stats> stats = new java.util.EnumMap<>(Language.class);
@@ -151,7 +156,7 @@ public class ScanService {
             Language.fromKey(key).ifPresent(l -> stats.put(l, new LanguageProfile.Stats(
                     Math.max(0, root.get(key).get("files").asLong(0)), Math.max(0, root.get(key).get("bytes").asLong(0)))));
         }
-        return new LanguageProfile(stats, 0).labels().stream().map(Language::key).toList();
+        return new LanguageProfile(stats, 0);
     }
 
     static List<PlanningNote> parseNotes(String json) {

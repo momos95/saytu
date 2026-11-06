@@ -1,4 +1,4 @@
-import { ageInDays, fileNameFrom, filtersFromParams, filtersToHttpPairs, filtersToParams, flowBars, severityTotals, shares, toggle, trendSeries } from './insights.logic';
+import { ageInDays, gainLabel, fileNameFrom, filtersFromParams, filtersToHttpPairs, filtersToParams, flowBars, severityTotals, shares, toggle, trendSeries } from './insights.logic';
 import { SeverityTypeCounts, TrendPoint } from './insights.model';
 
 describe('insights logic', () => {
@@ -57,5 +57,11 @@ describe('insights logic', () => {
   it('computes ages in days', () => {
     expect(ageInDays('2026-11-01T00:00:00Z', Date.parse('2026-11-06T12:00:00Z'))).toBe(5);
     expect(ageInDays(null)).toBeNull();
+  });
+
+  it('labels the security gain of an action', () => {
+    expect(gainLabel(12.46)).toBe('+12,5');
+    expect(gainLabel(0.01)).toBe('');
+    expect(gainLabel(3)).toBe('+3');
   });
 });

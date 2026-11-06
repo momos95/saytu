@@ -31,12 +31,20 @@ describe('RepositoryDetailPage', () => {
       branches: [{ branch: 'main', score: null, openBySeverity: { CRITICAL: 0, HIGH: 2, MEDIUM: 0, LOW: 0, INFO: 0 }, openFindings: 2 }],
       openBySeverity: { CRITICAL: zero, HIGH: { ...zero, SECURITY: 2 }, MEDIUM: zero, LOW: zero, INFO: zero },
       trend: [], weeklyFlow: [], topRules: [], recentJobs: [],
+      actionPlan: { branch: 'main', formulaVersion: 'v2', securityScore: 59, items: [{ kind: 'DEPENDENCY_UPGRADE',
+        title: 'Mettre à jour log4j-core 2.14.1 vers 2.16.0 ou plus', target: 'log4j-core 2.14.1', fixedVersion: '2.16.0',
+        severity: 'CRITICAL', findings: 2, securityBefore: 59, securityAfter: 90.9, gain: 31.9, exampleFindingId: 'f1',
+        query: { repositoryId: 'r1', branch: 'main', status: 'OPEN', q: 'log4j-core' } }] },
     });
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('h1')?.textContent).toContain('acme/api');
     expect(el.textContent).toContain('GitLab');
     expect(el.querySelector('[data-testid="branch"]')?.textContent).toContain('pas encore de score');
+    const action = el.querySelector('[data-testid="action"]')!.textContent!;
+    expect(action).toContain('Mettre à jour log4j-core');
+    expect(action).toContain('+31,9 pts sécurité');
+    expect(action).toContain('(59 → 91)');
     const audit = Array.from(el.querySelectorAll('button')).find(b => b.textContent?.includes('Auditer ce dépôt')) as HTMLButtonElement;
     audit.click();
     const req = http.expectOne(r => r.method === 'POST' && r.url === '/api/v1/scans');

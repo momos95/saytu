@@ -73,14 +73,11 @@ public final class ScoreCalculator {
             }
         }
         securityCoverage *= 100;
-        double securityPoints = points(in.security(), formula.securityWeights());
+        List<GroupImpact> groups = groups(in.securityIssues());
+        double securityPoints = groups.stream().mapToDouble(GroupImpact::points).sum();
         Double security = null;
         if (securityCoverage >= formula.minCoverage()) {
-            security = 100 * Math.exp(-securityPoints / formula.securityScale());
-            if (in.security().get(Severity.CRITICAL) > 0) {
-                security = Math.min(security, formula.criticalCap());
-            }
-            security = round(security);
+            security = securityScore(securityPoints, groups.stream().anyMatch(GroupImpact::critical));
         }
 
         // ---- quality
@@ -125,6 +122,11 @@ public final class ScoreCalculator {
         details.put("missingSecurityScanners", missingSecurity.stream().sorted().toList());
         details.put("languagesWithoutQualityAnalysis", uncovered.stream().sorted().toList());
         details.put("openSecurity", counts(in.security()));
+        Map<String, Double> byCategory = new LinkedHashMap<>();
+        for (SecurityIssue.Category c : SecurityIssue.Category.values()) {
+            byCategory.put(c.name(), round(groups.stream().filter(g -> g.category() == c).mapToDouble(GroupImpact::points).sum()));
+        }
+        details.put("securityPointsByCategory", byCategory);
         details.put("openQuality", counts(in.quality()));
         return new Score(security, quality, global, round(coverage), Reliability.of(coverage, formula.minCoverage()), details);
     }
@@ -201,6 +203,67 @@ public final class ScoreCalculator {
         return s.global() == null ? -1 : s.global();
     }
 
+    /**
+     * Findings fixed by one action (same package version, same rule) and the points they cost.
+     *
+     * @param critical the group holds a CRITICAL finding (fixing it may lift the critical cap)
+     */
+    public record GroupImpact(String group, SecurityIssue.Category category, int findings, double points,
+                              boolean critical) {
+    }
+
+    /**
+     * Security points per group, heaviest first. Weight of a finding = severity weight × category factor
+     * (× noFixFactor for a dependency without fixed version); within a group, sorted by weight, the n-th
+     * finding counts weight / n when diminishing returns are on.
+     */
+    public List<GroupImpact> groups(List<SecurityIssue> issues) {
+        Map<String, List<SecurityIssue>> byGroup = new LinkedHashMap<>();
+        for (SecurityIssue i : issues) {
+            byGroup.computeIfAbsent(i.group(), g -> new ArrayList<>()).add(i);
+        }
+        List<GroupImpact> result = new ArrayList<>();
+        for (var e : byGroup.entrySet()) {
+            List<Double> weights = new ArrayList<>();
+            boolean critical = false;
+            for (SecurityIssue i : e.getValue()) {
+                double w = formula.securityWeights().get(i.severity()) * formula.categoryFactors().get(i.category());
+                if (i.category() == SecurityIssue.Category.DEPENDENCY && !i.fixAvailable()) {
+                    w *= formula.noFixFactor();
+                }
+                weights.add(w);
+                critical |= i.severity() == Severity.CRITICAL;
+            }
+            weights.sort(java.util.Comparator.reverseOrder());
+            double points = 0;
+            for (int n = 0; n < weights.size(); n++) {
+                points += formula.diminishingReturns() ? weights.get(n) / (n + 1) : weights.get(n);
+            }
+            result.add(new GroupImpact(e.getKey(), e.getValue().getFirst().category(), e.getValue().size(), points, critical));
+        }
+        result.sort(java.util.Comparator.comparingDouble(GroupImpact::points).reversed().thenComparing(GroupImpact::group));
+        return result;
+    }
+
+    /** Security score for these points, capped while a CRITICAL finding is open; rounded to 2 decimals. */
+    public double securityScore(double points, boolean criticalOpen) {
+        double score = formula.securityScore(points);
+        return round(criticalOpen ? Math.min(score, formula.criticalCap()) : score);
+    }
+
+    /** Security score if every finding of {@code group} were fixed (what-if for the action plan). */
+    public double securityScoreWithout(List<GroupImpact> groups, String group) {
+        double points = 0;
+        boolean critical = false;
+        for (GroupImpact g : groups) {
+            if (!g.group().equals(group)) {
+                points += g.points();
+                critical |= g.critical();
+            }
+        }
+        return securityScore(points, critical);
+    }
+
     private static double points(Map<Severity, Long> counts, Map<Severity, Double> weights) {
         double p = 0;
         for (Severity s : Severity.values()) {
@@ -217,7 +280,7 @@ public final class ScoreCalculator {
         return m;
     }
 
-    static double round(double v) {
+    public static double round(double v) {
         return Math.round(v * 100) / 100.0;
     }
 }

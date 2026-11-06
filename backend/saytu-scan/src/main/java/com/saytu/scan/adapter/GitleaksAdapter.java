@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 /**
  * Gitleaks (MIT): secrets in the files of the checked-out branch.
@@ -35,8 +34,25 @@ import java.util.Set;
 public final class GitleaksAdapter implements ScannerAdapter {
 
     /** Rules whose matches are entropy-based guesses rather than a known token format. */
-    private static final Set<String> GENERIC_RULES = Set.of("generic-api-key", "generic-secret");
-    private static final Set<String> CRITICAL_RULES = Set.of("private-key");
+    /**
+     * Credentials whose format identifies the issuer (cloud, forge, payment, messaging, AI APIs): directly
+     * usable by anyone who reads the repository, hence CRITICAL. Every other secret is HIGH: a secret in
+     * Git history is exposed to everyone who can clone, whatever its format.
+     */
+    static final List<String> CRITICAL_PREFIXES = List.of("private-key", "aws-", "gcp-", "azure-", "alibaba-",
+            "github-", "gitlab-", "bitbucket-", "stripe-", "square-", "paypal-", "slack-", "twilio-", "sendgrid-",
+            "mailgun-", "openai-", "anthropic-", "heroku-", "digitalocean-", "npm-access-token", "pypi-upload-token",
+            "rubygems-", "hashicorp-", "vault-", "doppler-", "databricks-", "shopify-", "dropbox-");
+
+    static Severity severityOf(String ruleId) {
+        String id = ruleId == null ? "" : ruleId.toLowerCase(java.util.Locale.ROOT);
+        for (String prefix : CRITICAL_PREFIXES) {
+            if (id.startsWith(prefix)) {
+                return Severity.CRITICAL;
+            }
+        }
+        return Severity.HIGH;
+    }
     static final String RECOMMENDATION = "Consider the secret compromised: revoke or rotate it at its issuer first, "
             + "then remove it from the code (and from the Git history if the repository is shared) and load it "
             + "at run time from the environment or a secret manager.";
@@ -139,8 +155,7 @@ public final class GitleaksAdapter implements ScannerAdapter {
                     AdapterSupport.truncate(leak.get("Match").asText(), AdapterSupport.MAX_EVIDENCE_CHARS),
                     secret == null ? List.of() : List.of(secret));
             String contextHash = secret == null || secret.isEmpty() ? null : AdapterSupport.sha256Hex(ruleId + ":" + secret);
-            Severity severity = CRITICAL_RULES.contains(ruleId) ? Severity.CRITICAL
-                    : GENERIC_RULES.contains(ruleId) ? Severity.MEDIUM : Severity.HIGH;
+            Severity severity = severityOf(ruleId);
             String description = leak.get("Description").asText();
             findings.add(new NormalizedFinding(
                     ScannerId.GITLEAKS, ruleId, FindingType.SECRET, severity,

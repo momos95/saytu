@@ -6,6 +6,9 @@ import com.saytu.app.scan.ScanViews.FindingView;
 import com.saytu.app.scan.ScanViews.OccurrenceView;
 import com.saytu.app.scan.ScanViews.PageView;
 import com.saytu.app.scan.ScanViews.StatusChangeView;
+import com.saytu.core.finding.NormalizedFinding;
+import com.saytu.core.remediation.RemediationProvider;
+import com.saytu.core.remediation.RuleBasedRemediationProvider;
 import com.saytu.app.web.ResourceNotFoundException;
 import com.saytu.core.domain.FindingStatus;
 import com.saytu.core.domain.FindingType;
@@ -97,7 +100,7 @@ public class FindingQueryService {
                 FINDING_MAPPER.mapRow(rs, i), rs.getString("description"), rs.getString("evidence_redacted"),
                 rs.getString("recommendation"), JdbcRows.strings(rs, "references_urls"), rs.getString("cvss_vector"),
                 rs.getString("package_ecosystem"), JdbcRows.instant(rs, "resolved_at"), rs.getString("status_reason"),
-                rs.getString("status_changed_by"), JdbcRows.instant(rs, "status_changed_at"), List.of(), List.of()));
+                rs.getString("status_changed_by"), JdbcRows.instant(rs, "status_changed_at"), List.of(), List.of(), null));
         if (found.isEmpty()) {
             throw new ResourceNotFoundException("Finding " + findingId + " not found");
         }
@@ -111,7 +114,33 @@ public class FindingQueryService {
         FindingDetail d = found.getFirst();
         return new FindingDetail(d.finding(), d.description(), d.evidence(), d.recommendation(), d.references(),
                 d.cvssVector(), d.packageEcosystem(), d.resolvedAt(), d.statusReason(), d.statusChangedBy(),
-                d.statusChangedAt(), occurrences, history);
+                d.statusChangedAt(), occurrences, history, suggestion(d));
+    }
+
+    private static final RuleBasedRemediationProvider REMEDIATION = new RuleBasedRemediationProvider();
+
+    /** Deterministic fix suggestion (never applied automatically); null if the stored row cannot be read back. */
+    static RemediationProvider.Remediation suggestion(FindingDetail d) {
+        FindingView f = d.finding();
+        try {
+            ScannerId scanner = ScannerId.fromKey(f.scanner()).orElse(null);
+            if (scanner == null) {
+                return null;
+            }
+            FindingType type = FindingType.valueOf(f.type());
+            NormalizedFinding.Dependency dependency = type == FindingType.DEPENDENCY || f.packageName() != null
+                    ? new NormalizedFinding.Dependency(d.packageEcosystem(), f.packageName() == null ? f.ruleId() : f.packageName(),
+                            f.packageVersion(), f.fixedVersion())
+                    : null;
+            NormalizedFinding n = new NormalizedFinding(scanner, f.ruleId(), type, Severity.valueOf(f.severity()), f.title(),
+                    d.description(), f.filePath() == null || f.filePath().isBlank() ? null
+                    : new NormalizedFinding.SourceLocation(f.filePath(), f.startLine(), f.endLine()),
+                    f.cwes(), f.cve(), f.cvssScore() == null ? null : f.cvssScore().doubleValue(), d.cvssVector(),
+                    dependency, d.evidence(), d.recommendation(), d.references(), null);
+            return REMEDIATION.suggest(n, "").orElse(null);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     static MapSqlParameterSource filterParams(Filter f) {

@@ -18,6 +18,29 @@ final class ScoreSql {
             WHERE repository_id = :repositoryId AND branch = :branch AND status = 'OPEN'
             GROUP BY type, severity""";
 
+
+    /** OPEN security, secret and dependency findings of a branch, with what formula v2 needs to classify them. */
+    static final String SECURITY_ISSUES = """
+            SELECT f.id, f.type, f.severity, f.scanner_id, f.rule_id, f.title, f.file_path, f.cwe_ids,
+                   f.package_name, f.package_version, f.fixed_version
+            FROM finding f
+            WHERE f.repository_id = :repositoryId AND f.branch = :branch AND f.status = 'OPEN' AND f.type <> 'QUALITY'
+            ORDER BY f.id""";
+
+    /** Latest finished analysis of each branch (all repositories, one repository, or one branch). */
+    static final String LATEST_FINISHED_JOBS = """
+            SELECT DISTINCT ON (j.repository_id, j.branch) j.id, j.repository_id, j.branch, j.languages::text AS languages
+            FROM scan_job j JOIN source_repository r ON r.id = j.repository_id
+            WHERE j.status IN ('SUCCEEDED', 'PARTIAL') AND r.removed_at IS NULL
+              AND (CAST(:repositoryId AS uuid) IS NULL OR j.repository_id = CAST(:repositoryId AS uuid))
+              AND (CAST(:branch AS varchar) IS NULL OR j.branch = CAST(:branch AS varchar))
+            ORDER BY j.repository_id, j.branch, j.finished_at DESC""";
+
+    static final String JOB_EXECUTIONS = "SELECT scanner_id, status FROM scanner_execution WHERE scan_job_id = :jobId";
+
+    static final String LATEST_BRANCH_FORMULA = """
+            SELECT formula_version FROM score_snapshot WHERE scope_type = 'BRANCH' ORDER BY computed_at DESC LIMIT 1""";
+
     static final String INSERT_SNAPSHOT = """
             INSERT INTO score_snapshot (scope_type, namespace_id, repository_id, branch, scan_job_id, security_score,
                                         quality_score, global_score, coverage_percent, reliability, formula_version, details)

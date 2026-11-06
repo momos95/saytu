@@ -34,6 +34,28 @@ chiffrement) : une installation existante doit être réinitialisée.
 `.env` (ou le regénérer avec `scripts/generate-secrets.sh` après l'avoir supprimé), puis
 `docker compose up -d --build`.
 
+## Phase 6b — score v2, plan d'action et corrections proposées (6 novembre 2026)
+
+Demandé après les premiers audits réels (scores de sécurité à 0 sur tous les dépôts, secrets en « Moyenne »).
+
+### Livré et vérifié dans l'environnement de développement
+* Formule `v2` (`SecurityIssue`, `ScoreCalculator.groups`) : catégories code / secret / dépendance /
+  configuration, regroupement par paquet ou par règle avec rendements décroissants, courbe
+  `100 / (1 + points / 100)`. `ScoringV2Test` (7 tests) dont un microservice réaliste noté entre 20 et 40 ;
+  la v1 reste reproductible (`ScoringFormula.V1`).
+* Secrets : jamais sous « Élevée », « Critique » quand l'émetteur est identifiable (adaptateur Gitleaks
+  et migration V6 pour l'existant).
+* Corrections proposées (`RuleBasedRemediationProvider`, 24 fiches par CWE, dépendances de 9
+  écosystèmes, secrets, Kubernetes/Dockerfile, qualité) — **8 tests**.
+* Plan d'action (`InsightService.plan`) et lecture de la formule v2 — **3 tests** contre des souches Spring.
+* `saytu-core` **86/86**, `saytu-git` **89/89**, `saytu-scan` **42/42** ; SQL **95 contrôles** sur
+  PostgreSQL 16 (dont migration V6, requêtes de recalcul) ; frontend **8 specs** de logique.
+
+### Livré, écrit pour compiler, non exécuté ici
+* Recalcul des scores sans nouvel audit : au démarrage du worker si la formule a changé
+  (`ScoreUpgrade`), après chaque triage, après un changement de formule.
+* Angular : bloc « Correction proposée » (étapes, exemples, tests), « Plan d'action sécurité » du dépôt.
+
 ## Phase 6 — détail (6 novembre 2026)
 
 ### Livré et vérifié dans l'environnement de développement
@@ -61,7 +83,7 @@ chiffrement) : une installation existante doit être réinitialisée.
   Les liens des pages Audits et Organisations & dépôts mènent aux détails.
 
 ### Limites connues de la phase 6
-* Le triage modifie le score au **prochain** audit de la branche, pas immédiatement.
+* ~~Le triage modifie le score au prochain audit~~ : recalcul immédiat depuis la phase 6b.
 * PDF : polices standard non embarquées ; caractères hors Latin-1 remplacés par « ? » (intacts en
   HTML / JSON / SARIF). 2 000 vulnérabilités détaillées au plus en PDF / HTML.
 * Pas de triage en masse ni de commentaires sur une vulnérabilité.

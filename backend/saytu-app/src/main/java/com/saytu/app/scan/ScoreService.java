@@ -12,6 +12,7 @@ import com.saytu.core.scoring.Reliability;
 import com.saytu.core.scoring.Score;
 import com.saytu.core.scoring.ScoreCalculator;
 import com.saytu.core.scoring.ScoringFormula;
+import com.saytu.core.scoring.SecurityIssue;
 import com.saytu.git.json.JsonNode;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -30,6 +31,7 @@ import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -76,12 +78,18 @@ public class ScoreService {
                 .addValue("value", formulaJson(formula))
                 .addValue("updatedBy", currentUser()));
         audit.record("SCORING_FORMULA_UPDATED", "app_setting", "scoring.formula", Map.of("version", formula.version()));
+        rescore(null, null);
         return formula;
     }
 
     static ScoringFormula parseFormula(String json) {
         ScoringFormula d = ScoringFormula.DEFAULT;
         JsonNode n = JsonNode.parse(json);
+        Map<SecurityIssue.Category, Double> factors = new EnumMap<>(SecurityIssue.Category.class);
+        for (SecurityIssue.Category c : SecurityIssue.Category.values()) {
+            factors.put(c, number(n.get("categoryFactors").get(c.name()), d.categoryFactors().get(c)));
+        }
+        Optional<String> curve = n.text("securityCurve");
         return new ScoringFormula(
                 n.text("version").orElse(d.version()),
                 weights(n.get("securityWeights"), d.securityWeights()),
@@ -91,7 +99,11 @@ public class ScoreService {
                 number(n.get("qualityScale"), d.qualityScale()),
                 number(n.get("bytesPerLine"), d.bytesPerLine()),
                 number(n.get("securityShare"), d.securityShare()),
-                number(n.get("minCoverage"), d.minCoverage()));
+                number(n.get("minCoverage"), d.minCoverage()),
+                curve.map(c -> ScoringFormula.SecurityCurve.valueOf(c.toUpperCase(java.util.Locale.ROOT))).orElse(d.securityCurve()),
+                factors,
+                number(n.get("noFixFactor"), d.noFixFactor()),
+                n.get("diminishingReturns").asBoolean(d.diminishingReturns()));
     }
 
     private static Map<Severity, Double> weights(JsonNode node, Map<Severity, Double> defaults) {
@@ -118,6 +130,14 @@ public class ScoreService {
         m.put("bytesPerLine", f.bytesPerLine());
         m.put("securityShare", f.securityShare());
         m.put("minCoverage", f.minCoverage());
+        m.put("securityCurve", f.securityCurve().name());
+        Map<String, Object> factors = new LinkedHashMap<>();
+        for (SecurityIssue.Category c : SecurityIssue.Category.values()) {
+            factors.put(c.name(), f.categoryFactors().get(c));
+        }
+        m.put("categoryFactors", factors);
+        m.put("noFixFactor", f.noFixFactor());
+        m.put("diminishingReturns", f.diminishingReturns());
         return Json.write(m);
     }
 
@@ -139,20 +159,74 @@ public class ScoreService {
     public Score recordJob(UUID jobId, UUID repositoryId, String branch, LanguageProfile languages,
                            Map<ScannerId, ScannerExecutionStatus> executions) {
         ScoreCalculator calc = new ScoreCalculator(formula());
-        Map<Severity, Long> security = new EnumMap<>(Severity.class);
         Map<Severity, Long> quality = new EnumMap<>(Severity.class);
         jdbc.query(ScoreSql.OPEN_COUNTS, new MapSqlParameterSource().addValue("repositoryId", repositoryId)
                 .addValue("branch", branch), rs -> {
-            Severity s = Severity.valueOf(rs.getString("severity"));
-            Map<Severity, Long> target = FindingType.QUALITY.name().equals(rs.getString("type")) ? quality : security;
-            target.merge(s, rs.getLong("n"), Long::sum);
+            if (FindingType.QUALITY.name().equals(rs.getString("type"))) {
+                quality.merge(Severity.valueOf(rs.getString("severity")), rs.getLong("n"), Long::sum);
+            }
         });
-        Score score = calc.branch(new BranchScoreInput(security, quality, languages, executions));
+        List<SecurityIssue> issues = securityIssues(repositoryId, branch).stream().map(OpenSecurityFinding::issue).toList();
+        Score score = calc.branch(BranchScoreInput.of(issues, quality, languages, executions));
         Map<String, Object> details = new LinkedHashMap<>(score.details());
         details.put("codeBytes", codeBytes(languages));
         insert("BRANCH", null, repositoryId, branch, jobId, score, calc.formula(), details);
         refreshAggregates(calc, repositoryId);
         return score;
+    }
+
+    /** An OPEN security finding with its formula v2 classification (also used by the action plan). */
+    public record OpenSecurityFinding(UUID id, String type, String severity, String scanner, String ruleId, String title,
+                                      String filePath, String packageName, String packageVersion, String fixedVersion,
+                                      SecurityIssue issue) {
+    }
+
+    @Transactional(readOnly = true)
+    public List<OpenSecurityFinding> securityIssues(UUID repositoryId, String branch) {
+        return jdbc.query(ScoreSql.SECURITY_ISSUES, new MapSqlParameterSource().addValue("repositoryId", repositoryId)
+                .addValue("branch", branch), (rs, i) -> {
+            FindingType type = FindingType.valueOf(rs.getString("type"));
+            Severity severity = Severity.valueOf(rs.getString("severity"));
+            SecurityIssue issue = SecurityIssue.of(type, severity, rs.getString("scanner_id"), rs.getString("rule_id"),
+                    rs.getString("file_path"), JdbcRows.strings(rs, "cwe_ids"), rs.getString("package_name"),
+                    rs.getString("package_version"), rs.getString("fixed_version"));
+            return new OpenSecurityFinding(JdbcRows.uuid(rs, "id"), type.name(), severity.name(), rs.getString("scanner_id"),
+                    rs.getString("rule_id"), rs.getString("title"), rs.getString("file_path"), rs.getString("package_name"),
+                    rs.getString("package_version"), rs.getString("fixed_version"), issue);
+        });
+    }
+
+    /**
+     * Recomputes branch scores from the stored results (no new analysis): after a triage, a formula change
+     * or an upgrade. Uses the latest finished job of each branch for coverage and languages.
+     *
+     * @return number of branches rescored
+     */
+    @Transactional
+    public int rescore(UUID repositoryId, String branch) {
+        record Latest(UUID jobId, UUID repositoryId, String branch, String languages) {
+        }
+        List<Latest> jobs = jdbc.query(ScoreSql.LATEST_FINISHED_JOBS, new MapSqlParameterSource()
+                        .addValue("repositoryId", repositoryId, Types.OTHER).addValue("branch", branch, Types.VARCHAR),
+                (rs, i) -> new Latest(JdbcRows.uuid(rs, "id"), JdbcRows.uuid(rs, "repository_id"), rs.getString("branch"),
+                        rs.getString("languages")));
+        for (Latest j : jobs) {
+            Map<ScannerId, ScannerExecutionStatus> executions = new EnumMap<>(ScannerId.class);
+            jdbc.query(ScoreSql.JOB_EXECUTIONS, new MapSqlParameterSource("jobId", j.jobId()), rs -> {
+                String status = rs.getString("status");
+                ScannerId.fromKey(rs.getString("scanner_id")).ifPresent(id ->
+                        executions.put(id, ScannerExecutionStatus.valueOf(status)));
+            });
+            recordJob(j.jobId(), j.repositoryId(), j.branch(), ScanService.languageProfile(j.languages()), executions);
+        }
+        return jobs.size();
+    }
+
+    /** Version of the formula of the latest branch score, if any. */
+    @Transactional(readOnly = true)
+    public Optional<String> latestFormulaVersion() {
+        return jdbc.query(ScoreSql.LATEST_BRANCH_FORMULA, new MapSqlParameterSource(), (rs, i) -> rs.getString(1))
+                .stream().findFirst();
     }
 
     private void refreshAggregates(ScoreCalculator calc, UUID repositoryId) {

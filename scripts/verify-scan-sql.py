@@ -208,7 +208,7 @@ check(q(f"SELECT status, error_message FROM scan_run WHERE id = '{empty}'") == [
 
 print("== scores")
 formula = run("FORMULA")[0]
-check(formula and '"version": "v1"' in formula[0][0], "scoring formula v1 seeded by V5")
+check(formula and '"version": "v2"' in formula[0][0] and '"HYPERBOLIC"' in formula[0][0], "scoring formula v1 seeded by V5, replaced by v2 in V6")
 run("UPDATE_FORMULA", {"value": '{"version": "v1-custom", "securityScale": 40}', "updatedBy": "admin"})
 check('"v1-custom"' in run("FORMULA")[0][0][0], "formula updated")
 counts = run("OPEN_COUNTS", {"repositoryId": repo, "branch": "main"})[0]
@@ -244,7 +244,8 @@ except RuntimeError:
 
 print("== triage (phase 6)")
 fid2 = r2[0][0]
-check(run("LOCK_FINDING", {"findingId": fid2})[0] == [["OPEN"]], "finding status read for update")
+lock = run("LOCK_FINDING", {"findingId": fid2})[0]
+check(len(lock) == 1 and lock[0][0] == "OPEN" and lock[0][1] == repo and lock[0][2] == "main", "finding status, repository and branch read for update")
 tri = {"findingId": fid2, "status": "ACCEPTED_RISK", "reason": "compensating control", "user": "awa",
        "fromStatus": "OPEN", "toStatus": "ACCEPTED_RISK"}
 before = int(q(f"SELECT version FROM finding WHERE id = '{fid2}'")[0][0])
@@ -292,6 +293,15 @@ check(sorted(run("OPEN_BY_BRANCH", {"repositoryId": repo})[0]) == [["main", "MED
 rules = run("TOP_RULES", {"repositoryId": repo})[0]
 check(len(rules) == 2 and rules[0][4] == "2", "frequent rules with severity rank: " + str(rules))
 check(len(run("RECENT_JOBS", {"repositoryId": repo})[0]) == 2, "recent jobs of the repository")
+
+print("== scoring v2 (phase 6b)")
+issues = run("SECURITY_ISSUES", {"repositoryId": repo, "branch": "main"})[0]
+check(len(issues) == 2 and all(i[1] != "QUALITY" for i in issues) and issues[0][7] != "", "open security findings with CWE and package columns: " + str([i[1:5] for i in issues]))
+latest = run("LATEST_FINISHED_JOBS", {"repositoryId": None, "branch": None})[0]
+check(len(latest) == 2 and all(l[3] is not None for l in latest), "latest finished job of each branch: " + str([l[1:3] for l in latest]))
+check(len(run("LATEST_FINISHED_JOBS", {"repositoryId": repo, "branch": "main"})[0]) == 1, "filtered by repository and branch")
+check(any(run("JOB_EXECUTIONS", {"jobId": l[0]})[0] for l in latest), "scanner statuses of a job")
+check(run("LATEST_BRANCH_FORMULA")[0] == [["v1"]], "formula of the latest branch score (v1 snapshots → rescore needed)")
 
 print("== reports (phase 6)")
 rep = run("REPORT_FINDINGS", dict(base, statuses=["OPEN"], limit=100))[0]

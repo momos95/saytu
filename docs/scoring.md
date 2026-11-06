@@ -1,4 +1,4 @@
-# Scores, couverture et fiabilité (formule `v1`)
+# Scores, couverture et fiabilité (formule `v2`)
 
 Implémentation : `saytu-core/.../scoring/ScoreCalculator.java` (testée par `ScoreCalculatorTest`).
 Paramètres : `app_setting['scoring.formula']`, lisibles par `GET /api/v1/scores/formula` et
@@ -33,17 +33,60 @@ n'intervient pas dans la couverture. Les annotations du dépôt qui désactivera
 (`// eslint-disable`, `phpcs:ignore`, `-- noqa`, `@SuppressWarnings("PMD")`, configurations locales)
 sont ignorées ou signalées.
 
-## 3. Score de sécurité (absolu)
+## 3. Score de sécurité (formule `v2`, depuis le 6 novembre 2026)
 
-Findings **OPEN** de type SECURITY, SECRET et DEPENDENCY de la branche :
+Constat sur de vrais dépôts avec la v1 (`100 × e^(−points/50)`) : dès une vingtaine de vulnérabilités
+élevées, le score tombait à 0 pour presque tous les dépôts et ne permettait plus de les classer ; les
+réglages Kubernetes pesaient autant qu'une injection SQL et une dépendance à 10 CVE comptait 10 fois.
+
+Findings **OPEN** de type SECURITY, SECRET et DEPENDENCY de la branche, classés par **ce qu'il faut faire
+pour les corriger** (`SecurityIssue`) :
+
+| Catégorie | Reconnue par | Facteur |
+|---|---|---|
+| Code | SAST (Opengrep) sur du code applicatif | × 1 |
+| Secret | type SECRET, ou CWE-798 / 259 / 321 / 522 / 312 ; **jamais sous « Élevée »** | × 1 |
+| Dépendance | type DEPENDENCY | × 1 si une version corrigée existe, × 0,5 sinon |
+| Configuration | Trivy (Kubernetes, Dockerfile, Terraform…) ou fichier de déploiement (`Dockerfile`, `*.tf`, `docker-compose.yml`, YAML sous `k8s/`, `deploy/`, `manifests/`, `helm/`…) | × 0,5 |
 
 ```
-points   = Σ poids(sévérité)          CRITICAL 25 · HIGH 10 · MEDIUM 3 · LOW 1 · INFO 0
-sécurité = 100 × e^(−points / 50)     plafonné à 59 tant qu'un CRITICAL est ouvert
+poids(finding)   = poids(sévérité) × facteur        CRITICAL 25 · HIGH 10 · MEDIUM 3 · LOW 1 · INFO 0
+groupe           = même paquet et version | même règle (secret, configuration) | même scanner et règle (code)
+points(groupe)   = Σ poids_n / n   (poids triés du plus fort au plus faible : 1er en entier, 2e moitié, 3e tiers…)
+sécurité         = 100 / (1 + Σ points / 100)       plafonnée à 59 tant qu'un CRITICAL est ouvert
 ```
 
-Exemples : 1 HIGH → 82 ; 1 CRITICAL → 59 (plafond) ; 5 MEDIUM → 74 ; 3 HIGH + 10 MEDIUM → 30.
-Le score est absolu : une vulnérabilité critique compte autant dans un petit dépôt que dans un gros.
+Exemples : 1 élevée → 91 ; 100 points → 50 ; 250 points → 29 ; 1 000 points → 9 ; le score n'atteint
+jamais 0. Une règle trouvée 30 fois coûte 10 × H(30) ≈ 40 points au lieu de 300 ; un paquet avec 10 CVE
+élevées ≈ 29 points. Un microservice proche de `ht-ms` (≈ 170 résultats dont 8 paquets vulnérables, 72
+réglages Kubernetes, 20 alertes SAST, 8 secrets) obtient entre 20 et 40 (test `ScoringV2Test`).
+
+### Sévérité des secrets
+
+Un secret présent dans Git est exposé à toute personne pouvant cloner : **Élevée** au minimum,
+**Critique** quand son format identifie l'émetteur (clé privée, AWS, GCP, Azure, GitHub, GitLab,
+Bitbucket, Stripe, Slack, OpenAI, Anthropic, npm, PyPI, Vault… liste `GitleaksAdapter.CRITICAL_PREFIXES`).
+La migration V6 a appliqué cette règle aux secrets déjà enregistrés.
+
+### Recalcul
+
+* Mise à jour vers la v2 : le worker recalcule au démarrage le score de chaque branche auditée **à partir
+  des résultats enregistrés** (aucun clonage, aucune nouvelle analyse) dès que la formule enregistrée
+  diffère de celle des derniers scores.
+* Triage (risque accepté, faux positif, réouverture) : le score de la branche est recalculé immédiatement.
+* Changement de formule par un ADMIN : toutes les branches sont recalculées.
+
+### Plan d'action
+
+Le détail d'un dépôt liste, pour sa branche la plus faible, les **8 corrections au plus fort gain** : une
+action par groupe (mettre à jour un paquet vers la plus haute version corrigée citée par les avis,
+révoquer un secret, corriger une règle de configuration ou de code), avec le score de sécurité avant et
+après (même formule, même couverture). Retirer le seul groupe critique lève aussi le plafond de 59.
+
+### Formule `v1` (historique)
+
+`100 × e^(−points/50)`, mêmes poids, sans catégories ni regroupement (`ScoringFormula.V1`). Les scores
+calculés avec elle gardent `formula_version = v1` dans l'historique.
 
 ## 4. Score de qualité (relatif à la taille)
 
@@ -90,19 +133,22 @@ chaque changement de formule à partir du prochain audit.
 ```bash
 curl -X PUT https://saytu.example/api/v1/scores/formula -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -d '{
-    "version": "v1-site", "securityWeights": {"CRITICAL": 30, "HIGH": 10, "MEDIUM": 3, "LOW": 1, "INFO": 0},
-    "securityScale": 50, "criticalCap": 59, "qualityWeights": {"CRITICAL": 10, "HIGH": 5, "MEDIUM": 2, "LOW": 0.5, "INFO": 0.1},
-    "qualityScale": 50, "bytesPerLine": 35, "securityShare": 0.6, "minCoverage": 40 }'
+    "version": "v2-site", "securityWeights": {"CRITICAL": 30, "HIGH": 10, "MEDIUM": 3, "LOW": 1, "INFO": 0},
+    "securityScale": 100, "criticalCap": 59, "qualityWeights": {"CRITICAL": 10, "HIGH": 5, "MEDIUM": 2, "LOW": 0.5, "INFO": 0.1},
+    "qualityScale": 50, "bytesPerLine": 35, "securityShare": 0.6, "minCoverage": 40,
+    "securityCurve": "HYPERBOLIC", "categoryFactors": {"CODE": 1, "SECRET": 1, "DEPENDENCY": 1, "CONFIGURATION": 0.5},
+    "noFixFactor": 0.5, "diminishingReturns": true }'
 ```
 
 Champs absents : valeur par défaut. Valeurs refusées : poids négatifs, échelles ≤ 0, part,
 plafond ou couverture hors de [0, 1] / [0, 100]. Changer `version` à chaque modification permet de
-distinguer les historiques.
+distinguer les historiques. Toutes les branches auditées sont recalculées immédiatement.
 
 ## 8. Limites
 
 * La taille en lignes est estimée à partir des octets (35 octets / ligne).
 * Les règles des outils n'ont pas toutes la même sévérité « naturelle » : la correspondance
   sévérité-outil → sévérité SAYTU est dans chaque adaptateur (`saytu-scan/.../adapter`).
-* Pas de score de tendance dans cette version : l'historique des `score_snapshot` est conservé et
-  sera affiché par le tableau de bord (phase 6).
+* La catégorie « configuration » d'un résultat Opengrep repose sur le chemin du fichier (Dockerfile,
+  manifestes) : un YAML de déploiement rangé ailleurs compte comme du code (facteur 1).
+* Le gain affiché par le plan d'action suppose que la correction ne fait pas apparaître d'autre problème.

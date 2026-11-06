@@ -168,7 +168,10 @@ class AdapterParsingTest {
         GitleaksAdapter adapter = new GitleaksAdapter(Path.of("/opt/tools/gitleaks"), Path.of("/opt/rules/gitleaks.toml"));
         NormalizedFinding f = adapter.parse(file, context(src)).getFirst();
         assertEquals(FindingType.SECRET, f.type());
-        assertEquals(Severity.HIGH, f.severity());
+        assertEquals(Severity.CRITICAL, f.severity(), "a GitHub token identifies its issuer: CRITICAL");
+        assertEquals(Severity.HIGH, GitleaksAdapter.severityOf("generic-api-key"), "a secret is never below HIGH");
+        assertEquals(Severity.CRITICAL, GitleaksAdapter.severityOf("aws-access-token"));
+        assertEquals(Severity.CRITICAL, GitleaksAdapter.severityOf("private-key"));
         assertEquals("config/app.env", f.location().path());
         assertFalse(f.evidence().contains(token), "secret must be masked: " + f.evidence());
         assertFalse(f.toString().contains(token));

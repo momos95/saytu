@@ -9,7 +9,7 @@ import { AuditsApi } from '../audits/audits.api';
 import { RUN_STATUS_LABELS, SEVERITY_LABELS, SHORT_SCANNER_LABELS, shortSha } from '../audits/audits.logic';
 import { RunStatus } from '../audits/audits.model';
 import { InsightsApi } from '../findings/insights.api';
-import { SEVERITIES } from '../findings/insights.logic';
+import { ACTION_LABELS, SEVERITIES, gainLabel } from '../findings/insights.logic';
 import { RepositoryOverview } from '../findings/insights.model';
 
 const PROVIDERS: Record<string, string> = {
@@ -50,6 +50,36 @@ const PROVIDERS: Record<string, string> = {
       <section class="card score-line">
         <span class="muted small">Score du dépôt (branche la plus faible)</span>
         <saytu-score-badges [score]="d.score" />
+      </section>
+
+      <section class="card plan" data-testid="action-plan">
+        <h2>Plan d’action sécurité
+          @if (d.actionPlan.branch) { <span class="muted small">— branche {{ d.actionPlan.branch }}</span> }</h2>
+        @if (d.actionPlan.items.length === 0) {
+          <p class="empty">Aucune vulnérabilité de sécurité ouverte à corriger sur cette branche.</p>
+        } @else {
+          <p class="small muted">Corrections classées par gain sur le score de sécurité (formule {{ d.actionPlan.formulaVersion }}) :
+            chacune fait disparaître toutes les vulnérabilités de son groupe.</p>
+          <ol class="actions-list">
+            @for (a of d.actionPlan.items; track a.title) {
+              <li data-testid="action">
+                <div class="action-head">
+                  <span class="pill kind">{{ actionLabel(a.kind) }}</span>
+                  <span class="sev" [attr.data-severity]="a.severity">{{ sevLabel(a.severity) }}</span>
+                  <strong class="action-title">{{ a.title }}</strong>
+                </div>
+                <div class="small action-meta">
+                  @if (gain(a.gain)) {
+                    <span class="gain">{{ gain(a.gain) }} pts sécurité</span>
+                    <span class="muted">({{ round(a.securityBefore) }} → {{ round(a.securityAfter) }})</span>
+                  }
+                  <a routerLink="/findings" [queryParams]="a.query">{{ a.findings }} vulnérabilité(s)</a>
+                  <a [routerLink]="['/findings', a.exampleFindingId]">correction proposée</a>
+                </div>
+              </li>
+            }
+          </ol>
+        }
       </section>
 
       <section class="card">
@@ -139,6 +169,11 @@ const PROVIDERS: Record<string, string> = {
     .actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; }
     .score-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
     .name { font-weight: 600; overflow-wrap: anywhere; }
+    .actions-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 10px; }
+    .action-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .action-title { overflow-wrap: anywhere; }
+    .action-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; }
+    .gain { color: var(--saytu-accent); font-weight: 600; }
     section.card { margin-bottom: 14px; }
     .grid section.card { margin-bottom: 0; }
     @media (max-width: 640px) { .actions { align-items: flex-start; } }
@@ -175,6 +210,18 @@ export class RepositoryDetailPage implements OnInit {
         this.auditError.set('L’audit n’a pas pu être lancé.');
       },
     });
+  }
+
+  actionLabel(k: string): string {
+    return ACTION_LABELS[k] ?? k;
+  }
+
+  gain(g: number): string {
+    return gainLabel(g);
+  }
+
+  round(v: number): number {
+    return Math.round(v);
   }
 
   provider(p: string): string {

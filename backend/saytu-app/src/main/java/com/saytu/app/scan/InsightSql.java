@@ -14,7 +14,7 @@ final class InsightSql {
 
     // ------------------------------------------------------------------ triage
 
-    static final String LOCK_FINDING = "SELECT status FROM finding WHERE id = :findingId FOR UPDATE";
+    static final String LOCK_FINDING = "SELECT status, repository_id, branch FROM finding WHERE id = :findingId FOR UPDATE";
 
     static final String UPDATE_FINDING_STATUS = """
             UPDATE finding SET status = :status, status_reason = :reason, status_changed_by = :user,

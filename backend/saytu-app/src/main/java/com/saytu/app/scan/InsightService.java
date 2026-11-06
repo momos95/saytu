@@ -5,6 +5,10 @@ import com.saytu.app.scan.ScoreService.ScoreView;
 import com.saytu.app.web.ResourceNotFoundException;
 import com.saytu.core.domain.FindingType;
 import com.saytu.core.domain.Severity;
+import com.saytu.core.scoring.ScoreCalculator;
+import com.saytu.core.scoring.ScoringFormula;
+import com.saytu.core.scoring.SecurityIssue;
+import com.saytu.core.scoring.Versions;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -79,9 +83,28 @@ public class InsightService {
                           String errorMessage) {
     }
 
+    /**
+     * One fix and what it brings: every OPEN finding of the group disappears.
+     *
+     * @param kind          DEPENDENCY_UPGRADE, DEPENDENCY_WITHOUT_FIX, SECRET, CONFIGURATION, CODE
+     * @param target        package and version, or rule id
+     * @param fixedVersion  for an upgrade: highest fixed version named by the advisories
+     * @param securityAfter security score of the branch once fixed (same formula, same coverage)
+     * @param query         filters of the findings concerned (findings page)
+     */
+    public record ActionItem(String kind, String title, String target, String fixedVersion, String severity, int findings,
+                             double securityBefore, double securityAfter, double gain, UUID exampleFindingId,
+                             Map<String, String> query) {
+    }
+
+    /** Fixes ranked by security gain for one branch (the weakest one). */
+    public record ActionPlan(String branch, String formulaVersion, Double securityScore, List<ActionItem> items) {
+    }
+
     public record RepositoryOverview(RepositoryInfo repository, ScoreView score, List<BranchOverview> branches,
                                      Map<String, Map<String, Long>> openBySeverity, List<TrendPoint> trend,
-                                     List<FlowPoint> weeklyFlow, List<RuleCount> topRules, List<JobLine> recentJobs) {
+                                     List<FlowPoint> weeklyFlow, List<RuleCount> topRules, List<JobLine> recentJobs,
+                                     ActionPlan actionPlan) {
     }
 
     @Transactional(readOnly = true)
@@ -141,7 +164,88 @@ public class InsightService {
         ScoreView latest = scores.summary().repositories().stream().filter(r -> r.repositoryId().equals(repositoryId))
                 .map(ScoreService.RepositoryScore::score).findFirst().orElse(null);
         return new RepositoryOverview(info.getFirst(), latest, branches, openBySeverity(p), trend, flow(repositoryId),
-                rules, jobs);
+                rules, jobs, actionPlan(repositoryId, branches, info.getFirst().defaultBranch()));
+    }
+
+    static final int ACTION_LIMIT = 8;
+
+    /** Branch the plan is made for: lowest security score, else the default branch, else the first. */
+    static String planBranch(List<BranchOverview> branches, String defaultBranch) {
+        return branches.stream()
+                .filter(b -> b.score() != null && b.score().security() != null)
+                .min(java.util.Comparator.comparingDouble((BranchOverview b) -> b.score().security()).thenComparing(BranchOverview::branch))
+                .map(BranchOverview::branch)
+                .or(() -> branches.stream().map(BranchOverview::branch).filter(b -> b.equals(defaultBranch)).findFirst())
+                .or(() -> branches.stream().map(BranchOverview::branch).findFirst())
+                .orElse(null);
+    }
+
+    private ActionPlan actionPlan(UUID repositoryId, List<BranchOverview> branches, String defaultBranch) {
+        String branch = planBranch(branches, defaultBranch);
+        ScoringFormula formula = scores.formula();
+        if (branch == null) {
+            return new ActionPlan(null, formula.version(), null, List.of());
+        }
+        List<ScoreService.OpenSecurityFinding> open = scores.securityIssues(repositoryId, branch);
+        return plan(new ScoreCalculator(formula), repositoryId, branch, open);
+    }
+
+    /** Pure part of the action plan (tested without a database). */
+    static ActionPlan plan(ScoreCalculator calc, UUID repositoryId, String branch, List<ScoreService.OpenSecurityFinding> open) {
+        List<SecurityIssue> issues = open.stream().map(ScoreService.OpenSecurityFinding::issue).toList();
+        List<ScoreCalculator.GroupImpact> groups = calc.groups(issues);
+        double total = groups.stream().mapToDouble(ScoreCalculator.GroupImpact::points).sum();
+        double before = calc.securityScore(total, groups.stream().anyMatch(ScoreCalculator.GroupImpact::critical));
+        List<ActionItem> items = new ArrayList<>();
+        for (ScoreCalculator.GroupImpact g : groups.stream().limit(ACTION_LIMIT).toList()) {
+            List<ScoreService.OpenSecurityFinding> members = open.stream().filter(f -> f.issue().group().equals(g.group())).toList();
+            ScoreService.OpenSecurityFinding first = members.stream()
+                    .min(java.util.Comparator.comparingInt((ScoreService.OpenSecurityFinding f) -> f.issue().severity().ordinal()))
+                    .orElseThrow();
+            double after = calc.securityScoreWithout(groups, g.group());
+            Map<String, String> query = new LinkedHashMap<>();
+            query.put("repositoryId", repositoryId.toString());
+            query.put("branch", branch);
+            query.put("status", "OPEN");
+            String kind;
+            String title;
+            String target;
+            String fixed = null;
+            int n = members.size();
+            switch (g.category()) {
+                case DEPENDENCY -> {
+                    target = first.packageName() == null ? first.ruleId()
+                            : first.packageName() + (first.packageVersion() == null ? "" : " " + first.packageVersion());
+                    fixed = Versions.highest(members.stream().map(ScoreService.OpenSecurityFinding::fixedVersion).toList()).orElse(null);
+                    kind = fixed == null ? "DEPENDENCY_WITHOUT_FIX" : "DEPENDENCY_UPGRADE";
+                    title = fixed == null
+                            ? "Remplacer ou isoler " + target + " (aucune version corrigée publiée)"
+                            : "Mettre à jour " + target + " vers " + fixed + " ou plus";
+                    query.put("q", first.packageName() == null ? first.ruleId() : first.packageName());
+                }
+                case SECRET -> {
+                    kind = "SECRET";
+                    target = first.ruleId();
+                    title = "Révoquer puis retirer " + (n > 1 ? n + " secrets « " : "le secret « ") + first.title() + " »";
+                    query.put("q", first.ruleId());
+                }
+                case CONFIGURATION -> {
+                    kind = "CONFIGURATION";
+                    target = first.ruleId();
+                    title = "Corriger la configuration : " + first.title() + (n > 1 ? " (" + n + " emplacements)" : "");
+                    query.put("q", first.ruleId());
+                }
+                default -> {
+                    kind = "CODE";
+                    target = first.ruleId();
+                    title = "Corriger dans le code : " + first.title() + (n > 1 ? " (" + n + " emplacements)" : "");
+                    query.put("q", first.ruleId());
+                }
+            }
+            items.add(new ActionItem(kind, title, target, fixed, first.issue().severity().name(), n, before, after,
+                    ScoreCalculator.round(after - before), first.id(), query));
+        }
+        return new ActionPlan(branch, calc.formula().version(), before, items);
     }
 
     private Map<String, Map<String, Long>> openBySeverity(MapSqlParameterSource p) {

@@ -89,23 +89,50 @@ import { FindingDetail } from './insights.model';
         @if (d.evidence) {
           <section class="card"><h2>Preuve <span class="muted small">(secrets masqués)</span></h2><pre data-testid="evidence">{{ d.evidence }}</pre></section>
         }
+        @if (d.suggestion; as sg) {
+          <section class="card suggestion" data-testid="suggestion">
+            <h2>Correction proposée <span class="muted small">— {{ sg.topic }}</span></h2>
+            @if (!sg.specific) {
+              <p class="small muted">Recommandation générale de la catégorie : pas de guide détaillé pour cette règle.</p>
+            }
+            <p class="text">{{ sg.explanation }}</p>
+            <p class="impact"><strong>Impact :</strong> {{ sg.impact }}</p>
+            <h3>Étapes</h3>
+            <ol class="steps">@for (st of sg.steps; track $index) { <li>{{ st }}</li> }</ol>
+            @if (sg.vulnerableExample || sg.fixedCodeExample) {
+              <div class="examples">
+                @if (sg.vulnerableExample) {
+                  <div><h3>À éviter <span class="muted small">({{ sg.exampleLanguage }})</span></h3><pre class="bad">{{ sg.vulnerableExample }}</pre></div>
+                }
+                @if (sg.fixedCodeExample) {
+                  <div><h3>Exemple corrigé <span class="muted small">({{ sg.exampleLanguage }})</span></h3><pre class="good" data-testid="fixed-example">{{ sg.fixedCodeExample }}</pre></div>
+                }
+              </div>
+            }
+            @if (sg.suggestedTests.length) {
+              <h3>Tests à ajouter</h3>
+              <ul class="steps">@for (t of sg.suggestedTests; track $index) { <li>{{ t }}</li> }</ul>
+            }
+            <p class="small muted">Suggestion déterministe de SAYTU (aucune IA, aucun envoi externe), à adapter au contexte.
+              Aucune correction n’est appliquée automatiquement.</p>
+          </section>
+        }
+
         <section class="card">
-          <h2>Recommandation</h2>
+          <h2>Indication du scanner</h2>
           @if (d.recommendation) {
             <p class="text" data-testid="recommendation">{{ d.recommendation }}</p>
           } @else {
-            <p class="empty">Le scanner ne fournit pas de recommandation pour cette règle : voir les références ci-dessous.</p>
+            <p class="empty">Le scanner ne fournit pas de recommandation pour cette règle.</p>
           }
-          @if (d.references.length) {
+          @if (references(d).length) {
             <h3>Références</h3>
             <ul class="refs">
-              @for (r of d.references; track r) {
+              @for (r of references(d); track r) {
                 <li>@if (isLink(r)) { <a [href]="r" target="_blank" rel="noopener noreferrer">{{ r }}</a> } @else { {{ r }} }</li>
               }
             </ul>
           }
-          <p class="small muted">Explication détaillée et exemple de correction par une IA locale (Ollama, optionnelle) : phase 7.
-            Aucune correction n’est appliquée automatiquement.</p>
         </section>
 
         @if (d.history.length) {
@@ -153,6 +180,13 @@ import { FindingDetail } from './insights.model';
     .actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
     .refs { margin: 0; padding-left: 18px; font-size: .85rem; overflow-wrap: anywhere; }
+    .suggestion { border-left: 3px solid var(--saytu-accent); }
+    .impact { margin: 8px 0; }
+    .steps { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+    .examples { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-bottom: 10px; }
+    .examples h3 { margin-top: 4px; }
+    pre.bad { border-left: 3px solid var(--saytu-critical); }
+    pre.good { border-left: 3px solid var(--saytu-accent); }
   `,
 })
 export class FindingDetailPage implements OnInit {
@@ -220,6 +254,11 @@ export class FindingDetailPage implements OnInit {
 
   sha(s: string | null): string {
     return s ? shortSha(s) : '—';
+  }
+
+  /** scanner references plus the suggestion's (cheat sheets, CWE, advisories), without duplicates */
+  references(d: FindingDetail): string[] {
+    return [...new Set([...d.references, ...(d.suggestion?.references ?? [])])];
   }
 
   isLink(r: string): boolean {

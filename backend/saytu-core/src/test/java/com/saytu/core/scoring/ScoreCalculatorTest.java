@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ScoreCalculatorTest {
 
-    private final ScoreCalculator calc = new ScoreCalculator(ScoringFormula.DEFAULT);
+    private final ScoreCalculator calc = new ScoreCalculator(ScoringFormula.V1);
 
     private static final ScannerExecutionStatus OK = ScannerExecutionStatus.SUCCEEDED;
 

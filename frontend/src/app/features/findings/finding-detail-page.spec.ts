@@ -16,6 +16,10 @@ const DETAIL = {
   description: 'A key', evidence: 'api_key: "****"', recommendation: 'Révoquer la clé puis la retirer du dépôt.',
   references: ['https://cwe.mitre.org/data/definitions/798.html'], cvssVector: null, packageEcosystem: null, resolvedAt: null,
   statusReason: null, statusChangedBy: null, statusChangedAt: null, occurrences: [], history: [],
+  suggestion: { providerId: 'rule-based', topic: 'Secret dans le dépôt', explanation: 'Une valeur…', impact: 'Élevé : …',
+    steps: ['Révoquer le secret', 'Le lire depuis l’environnement'], exampleLanguage: 'yaml', vulnerableExample: 'password: x',
+    fixedCodeExample: 'password: ${DB_PASSWORD}', suggestedTests: ['Démarrer sans la variable'],
+    references: ['https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html'], specific: true },
 };
 
 describe('FindingDetailPage', () => {
@@ -43,6 +47,9 @@ describe('FindingDetailPage', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('[data-testid="evidence"]')?.textContent).toBe('api_key: "****"');
     expect(el.querySelector('[data-testid="recommendation"]')?.textContent).toContain('Révoquer la clé');
+    expect(el.querySelector('[data-testid="suggestion"]')?.textContent).toContain('Secret dans le dépôt');
+    expect(el.querySelector('[data-testid="fixed-example"]')?.textContent).toBe('password: ${DB_PASSWORD}');
+    expect(el.querySelectorAll('.refs a').length).toBe(2);
     expect(el.textContent).toContain('réservé aux rôles AUDITOR et ADMIN');
     expect(el.querySelector('textarea')).toBeNull();
   });

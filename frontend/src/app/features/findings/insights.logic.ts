@@ -173,3 +173,17 @@ export function ageInDays(iso: string | null, now = Date.now()): number | null {
 function round(n: number): number {
   return Math.round(n * 10) / 10;
 }
+
+export const ACTION_LABELS: Record<string, string> = {
+  DEPENDENCY_UPGRADE: 'Mise à jour', DEPENDENCY_WITHOUT_FIX: 'Dépendance sans correctif', SECRET: 'Secret',
+  CONFIGURATION: 'Configuration', CODE: 'Code',
+};
+
+/** "+12,5" style gain label; nothing for a negligible gain. */
+export function gainLabel(gain: number): string {
+  if (gain < 0.05) {
+    return '';
+  }
+  const rounded = Math.round(gain * 10) / 10;
+  return `+${rounded.toLocaleString('fr-FR')}`;
+}

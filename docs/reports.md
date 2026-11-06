@@ -44,6 +44,24 @@ plus bas (les dépôts sans score viennent après), puis le nombre d'élevées.
 (branche la plus faible), chaque branche avec son score et ses vulnérabilités ouvertes par criticité,
 évolution, 10 règles les plus fréquentes, 20 derniers jobs. Bouton « Auditer ce dépôt » (AUDITOR, ADMIN).
 
+## Corrections proposées
+
+Le détail d'une vulnérabilité affiche, en plus de l'indication du scanner, une **correction proposée**
+par le fournisseur déterministe `RuleBasedRemediationProvider` (`saytu-core/remediation`) — aucune IA,
+aucun envoi externe, résultat reproductible :
+
+| Cas | Contenu |
+|---|---|
+| Dépendance | version cible (la plus haute version corrigée citée par les avis), extrait prêt à l'emploi pour forcer la version même transitive (Maven `dependencyManagement`, Gradle `constraints`, npm `overrides`, pip, Composer, Go, NuGet, Cargo, Bundler), commande pour vérifier la version résolue ; sans version corrigée : remplacement, isolement ou risque accepté |
+| Secret | révoquer d'abord, lire la valeur depuis l'environnement (exemple dans la syntaxe du fichier : YAML Spring, `.properties`, `.env`, Java, TypeScript, PHP, Python, C#), purge de l'historique si le dépôt est partagé, pre-commit gitleaks |
+| Configuration | règle Kubernetes (KSV) ou Dockerfile (DS) expliquée, `securityContext` / Dockerfile durcis complets |
+| Code | 24 familles de failles par CWE (injection SQL, XSS, commande, chemin, désérialisation, XXE, SSRF, redirection, cryptographie, aléa, TLS, CSRF, JWT, cookies, CORS, ReDoS, NoSQL, LDAP, pollution de prototype, contrôle d'accès, affectation de masse…) : explication, impact, étapes, exemple vulnérable et corrigé dans le langage du fichier (Java, TypeScript/JavaScript, PHP, Python, C#), tests à ajouter |
+| Qualité | règles courantes de PMD, Checkstyle, ESLint expliquées, lien vers la documentation de la règle |
+
+Quand aucune fiche ne correspond, la suggestion est marquée « générale ». Les liens renvoient à l'OWASP
+Cheat Sheet Series et à MITRE CWE (référencés, non copiés). L'explication libre par une IA locale
+(Ollama, optionnelle) reste prévue en phase 7.
+
 ## Triage
 
 `PUT /api/v1/findings/{id}/status` (AUDITOR, ADMIN) avec `{"status": "...", "reason": "..."}` :
@@ -56,6 +74,5 @@ plus bas (les dépôts sans score viennent après), puis le nombre d'élevées.
 
 Un statut posé à la main n'est jamais modifié par un audit. Chaque changement est conservé dans
 `finding_status_history` (affiché dans le détail) et dans le journal d'audit (`FINDING_STATUS_CHANGED`).
-Les vulnérabilités triées ne comptent plus dans le score **à partir du prochain audit de la branche**
-(le score est calculé à la fin de chaque audit) ; elles restent visibles avec le filtre de statut
-correspondant.
+Le score de la branche est **recalculé immédiatement** après un triage : les vulnérabilités triées ne
+comptent plus ; elles restent visibles avec le filtre de statut correspondant.
