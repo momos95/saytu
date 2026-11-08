@@ -88,7 +88,8 @@ import { FindingFilters } from './insights.model';
                       <a [routerLink]="['/findings', f.id]">{{ f.title }}</a>
                       <div class="muted small">{{ typeLabel(f.type) }} · {{ f.ruleId }}@for (c of f.cwes; track c) { · {{ c }} }@if (f.cve) { · {{ f.cve }} }</div>
                     </td>
-                    <td><a [routerLink]="['/repositories', f.repositoryId]">{{ f.repositoryName }}</a> <span class="muted">{{ f.branch }}</span></td>
+                    <td class="repo"><a [routerLink]="['/repositories', f.repositoryId]">{{ f.repositoryName }}</a>
+                      <div class="muted small">⎇ {{ f.branch }}</div></td>
                     <td class="mono">{{ where(f) }}</td>
                     <td>{{ scannersOf(f) }}</td>
                     <td><span class="pill" [attr.data-status]="f.status">{{ statusLabel(f.status) }}</span></td>
@@ -125,6 +126,7 @@ import { FindingFilters } from './insights.model';
     .summary { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 8px; }
     .problem a { font-weight: 600; }
     .problem { min-width: 220px; }
+    .repo { overflow-wrap: anywhere; min-width: 120px; }
     .pager { display: flex; gap: 8px; justify-content: center; align-items: center; margin-top: 12px; }
   `,
 })

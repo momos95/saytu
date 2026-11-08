@@ -303,6 +303,9 @@ check(len(run("LATEST_FINISHED_JOBS", {"repositoryId": repo, "branch": "main"})[
 check(any(run("JOB_EXECUTIONS", {"jobId": l[0]})[0] for l in latest), "scanner statuses of a job")
 check(run("LATEST_BRANCH_FORMULA")[0] == [["v1"]], "formula of the latest branch score (v1 snapshots → rescore needed)")
 
+check(run("CONSUME_RESCORE_REQUEST")[0] == [['"V7: PMD severity by category"']], "rescore request left by migration V7 is consumed once")
+check(run("CONSUME_RESCORE_REQUEST")[0] == [], "and only once")
+
 print("== reports (phase 6)")
 rep = run("REPORT_FINDINGS", dict(base, statuses=["OPEN"], limit=100))[0]
 check(len(rep) == 2 and all(len(r[-1]) == 64 for r in rep), "report findings with fingerprint")

@@ -61,6 +61,14 @@ jamais 0. Une règle trouvée 30 fois coûte 10 × H(30) ≈ 40 points au lieu d
 élevées ≈ 29 points. Un microservice proche de `ht-ms` (≈ 170 résultats dont 8 paquets vulnérables, 72
 réglages Kubernetes, 20 alertes SAST, 8 secrets) obtient entre 20 et 40 (test `ScoringV2Test`).
 
+### Sévérité des remarques PMD
+
+Le jeu de règles `quickstart` de PMD donne la priorité 1 à des règles de nommage et de style. La sévérité
+SAYTU dépend donc aussi de la catégorie de la règle : *Error Prone*, *Multithreading* et *Security*
+peuvent être « Élevée » (priorités 1-2) ; *Best Practices*, *Design*, *Performance* au plus « Moyenne » ;
+*Code Style* et *Documentation* au plus « Faible ». La migration V7 a abaissé les remarques déjà
+enregistrées et demandé un recalcul des scores au démarrage du worker.
+
 ### Sévérité des secrets
 
 Un secret présent dans Git est exposé à toute personne pouvant cloner : **Élevée** au minimum,

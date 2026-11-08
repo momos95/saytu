@@ -103,7 +103,7 @@ import { FindingPage, ScanJob, ScanRun, ScanRunDetail } from './audits.model';
           @for (j of d.jobs; track j.id) {
             <li class="job" data-testid="job">
               <div class="row">
-                <span class="name"><a [routerLink]="['/repositories', j.repositoryId]">{{ j.repositoryName }}</a> <span class="branch">⎇ {{ j.branch }}</span></span>
+                <span class="name"><a [routerLink]="['/repositories', j.repositoryId]">{{ j.repositoryName }}</a>&nbsp;<span class="branch">⎇ {{ j.branch }}</span></span>
                 <span class="status" [attr.data-status]="j.status">{{ statusLabel(j.status) }}</span>
               </div>
               <p class="muted meta">

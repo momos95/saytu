@@ -123,7 +123,12 @@ class QualityAdapterParsingTest {
         NormalizedFinding suppressed = byRule(f, "pmd:UseEqualsToCompareStrings");
         assertEquals(Severity.HIGH, suppressed.severity());
         assertTrue(suppressed.description().contains("suppressed in the code"));
-        assertEquals(Severity.LOW, byRule(f, "pmd:EmptyCatchBlock").severity());
+        assertEquals(Severity.MEDIUM, byRule(f, "pmd:EmptyCatchBlock").severity(), "Error Prone, priority 3");
+        assertEquals(Severity.LOW, PmdAdapter.severity(1, "Code Style"), "naming rules are not defects");
+        assertEquals(Severity.INFO, PmdAdapter.severity(4, "Documentation"));
+        assertEquals(Severity.MEDIUM, PmdAdapter.severity(1, "Design"));
+        assertEquals(Severity.HIGH, PmdAdapter.severity(2, "Multithreading"));
+        assertEquals(Severity.MEDIUM, PmdAdapter.severity(1, null));
         assertTrue(byRule(f, "pmd:EmptyCatchBlock").references().getFirst().startsWith("https://docs.pmd-code.org/"));
         assertEquals("7.28.0", new PmdAdapter(Path.of("/j"), Path.of("/p")).parseVersion(" ___ banner\n PMD 7.28.0 (abc, 2026-09-25)\nJava version: 21"));
     }

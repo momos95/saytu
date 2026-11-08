@@ -222,6 +222,13 @@ public class ScoreService {
         return jobs.size();
     }
 
+    /** Removes and returns the pending rescore request left by a migration, if any. */
+    @Transactional
+    public Optional<String> consumeRescoreRequest() {
+        return jdbc.query(ScoreSql.CONSUME_RESCORE_REQUEST, new MapSqlParameterSource(), (rs, i) -> rs.getString(1))
+                .stream().findFirst();
+    }
+
     /** Version of the formula of the latest branch score, if any. */
     @Transactional(readOnly = true)
     public Optional<String> latestFormulaVersion() {

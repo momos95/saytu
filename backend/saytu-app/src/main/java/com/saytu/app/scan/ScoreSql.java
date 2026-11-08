@@ -38,6 +38,9 @@ final class ScoreSql {
 
     static final String JOB_EXECUTIONS = "SELECT scanner_id, status FROM scanner_execution WHERE scan_job_id = :jobId";
 
+    /** One-shot rescore request left by a migration that changed stored findings; consumed by the worker. */
+    static final String CONSUME_RESCORE_REQUEST = "DELETE FROM app_setting WHERE key = 'scoring.rescore' RETURNING value::text";
+
     static final String LATEST_BRANCH_FORMULA = """
             SELECT formula_version FROM score_snapshot WHERE scope_type = 'BRANCH' ORDER BY computed_at DESC LIMIT 1""";
 

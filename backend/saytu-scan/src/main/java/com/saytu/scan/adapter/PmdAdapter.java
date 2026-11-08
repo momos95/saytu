@@ -16,6 +16,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -138,7 +139,7 @@ public final class PmdAdapter implements ScannerAdapter {
         FindingType type = "Security".equalsIgnoreCase(ruleset) ? FindingType.SECURITY : FindingType.QUALITY;
         List<String> refs = new ArrayList<>();
         v.text("externalInfoUrl").ifPresent(refs::add);
-        return new NormalizedFinding(ScannerId.PMD, "pmd:" + rule, type, severity((int) v.get("priority").asLong(3)),
+        return new NormalizedFinding(ScannerId.PMD, "pmd:" + rule, type, severity((int) v.get("priority").asLong(3), ruleset),
                 AdapterSupport.firstSentence(description, 200), text + (ruleset == null ? "" : "\n\nPMD category: " + ruleset),
                 new NormalizedFinding.SourceLocation(path, start, end), List.of(), null, null, null, null,
                 AdapterSupport.truncate(AdapterSupport.sourceLine(context.sourceDir(), path, start), 500),
@@ -146,13 +147,26 @@ public final class PmdAdapter implements ScannerAdapter {
                 AdapterSupport.urls(refs), AdapterSupport.contextHash(context.sourceDir(), path, start));
     }
 
-    /** PMD priority 1 (high) .. 5 (low). */
-    static Severity severity(int priority) {
-        return switch (priority) {
-            case 1 -> Severity.HIGH;
-            case 2 -> Severity.MEDIUM;
-            case 3 -> Severity.LOW;
-            default -> Severity.INFO;
+    /**
+     * PMD priority 1 (high) .. 5 (low), weighted by the rule category: the quickstart rule set gives
+     * priority 1 to naming and style rules too, which are not defects. Only Error Prone, Multithreading
+     * and Security rules can be HIGH; Code Style and Documentation are at most LOW.
+     */
+    static Severity severity(int priority, String ruleset) {
+        String category = ruleset == null ? "" : ruleset.strip().toLowerCase(Locale.ROOT);
+        return switch (category) {
+            case "error prone", "multithreading", "security" -> switch (priority) {
+                case 1, 2 -> Severity.HIGH;
+                case 3 -> Severity.MEDIUM;
+                case 4 -> Severity.LOW;
+                default -> Severity.INFO;
+            };
+            case "code style", "documentation" -> priority <= 3 ? Severity.LOW : Severity.INFO;
+            default -> switch (priority) { // Best Practices, Design, Performance, unknown
+                case 1, 2 -> Severity.MEDIUM;
+                case 3 -> Severity.LOW;
+                default -> Severity.INFO;
+            };
         };
     }
 }
