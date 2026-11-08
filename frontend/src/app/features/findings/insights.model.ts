@@ -159,3 +159,33 @@ export interface FindingFilters {
   scanner?: string;
   q?: string;
 }
+
+export interface JobRef {
+  id: string;
+  repositoryId: string;
+  repository: string;
+  branch: string;
+  status: string;
+  commitSha: string | null;
+  finishedAt: string | null;
+  score: ScoreView | null;
+}
+
+export interface Comparison {
+  base: JobRef;
+  head: JobRef;
+  introduced: Finding[];
+  fixed: Finding[];
+  unverified: Finding[];
+  persisting: number;
+  introducedTotal: number;
+  fixedTotal: number;
+  unverifiedTotal: number;
+  scanners: { scanner: string; baseStatus: string | null; headStatus: string | null; baseVersion: string | null; headVersion: string | null }[];
+}
+
+export interface AiExplanation {
+  content: Suggestion;
+  providerId: string;
+  createdAt: string;
+}

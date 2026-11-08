@@ -134,6 +134,11 @@ services:
       SAYTU_OIDC_WEB_CLIENT_ID: saytu-web
       SAYTU_CORS_ALLOWED_ORIGINS: ${SAYTU_PUBLIC_URL:-http://localhost:8080}
       SAYTU_EXPOSE_API_DOCS: ${SAYTU_EXPOSE_API_DOCS:-false}
+      SAYTU_PUBLIC_URL: ${SAYTU_PUBLIC_URL:-http://localhost:8080}
+      # user management page: confidential client of the saytu realm (scripts/keycloak-admin-client.*)
+      SAYTU_KEYCLOAK_ADMIN_URL: http://keycloak:8080
+      SAYTU_KEYCLOAK_ADMIN_CLIENT_ID: saytu-admin-api
+      SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET: ${SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET:-}
       SAYTU_MASTER_KEY: ${SAYTU_MASTER_KEY:?set SAYTU_MASTER_KEY in .env}
       SAYTU_PREVIOUS_MASTER_KEYS: ${SAYTU_PREVIOUS_MASTER_KEYS:-}
       SAYTU_GIT_ALLOW_PLAIN_HTTP: ${SAYTU_GIT_ALLOW_PLAIN_HTTP:-false}
@@ -189,6 +194,7 @@ services:
       SAYTU_GIT_CA_BUNDLE: ${SAYTU_GIT_CA_BUNDLE_IN_CONTAINER:-}
       SAYTU_LOCAL_REPOS_ROOT: /srv/git
       SAYTU_WORKER_ENABLED: "true"
+      SAYTU_PUBLIC_URL: ${SAYTU_PUBLIC_URL:-http://localhost:8080}
       SAYTU_WORKER_ID: worker-1
       SAYTU_WORKER_MAX_PARALLEL_JOBS: ${SAYTU_WORKER_MAX_PARALLEL_JOBS:-2}
       # downloads public advisories only (never code); set to false on an air-gapped site

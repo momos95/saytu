@@ -35,6 +35,14 @@ spring:
           audiences: ${SAYTU_OIDC_AUDIENCE:saytu-api}
 
 saytu:
+  # links in webhook messages; the address users open in their browser
+  public-url: ${SAYTU_PUBLIC_URL:http://localhost:8080}
+  # user management page (Keycloak Admin API, saytu realm only); empty secret = read-only notice
+  keycloak-admin:
+    url: ${SAYTU_KEYCLOAK_ADMIN_URL:http://keycloak:8080}
+    realm: saytu
+    client-id: ${SAYTU_KEYCLOAK_ADMIN_CLIENT_ID:saytu-admin-api}
+    client-secret: ${SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET:}
   version: '@project.version@'
   security:
     web-client-id: ${SAYTU_OIDC_WEB_CLIENT_ID:saytu-web}

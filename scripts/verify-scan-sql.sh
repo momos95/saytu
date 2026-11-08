@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Checks the SQL of the scan engine (backend/saytu-app/.../scan/ScanSql, ScoreSql, InsightSql) on a throw-away PostgreSQL
+# Checks the SQL of the scan engine (backend/saytu-app/.../scan/ScanSql, ScoreSql, InsightSql, AutomationSql) on a throw-away PostgreSQL
 # built from the Flyway migrations. Needs javac, python3 and the PostgreSQL server binaries.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -17,12 +17,13 @@ trap cleanup EXIT
 mkdir -p "$WORK/classes"
 javac -d "$WORK/classes" "$ROOT/backend/saytu-app/src/main/java/com/saytu/app/scan/ScanSql.java" \
       "$ROOT/backend/saytu-app/src/main/java/com/saytu/app/scan/ScoreSql.java" \
-      "$ROOT/backend/saytu-app/src/main/java/com/saytu/app/scan/InsightSql.java"
+      "$ROOT/backend/saytu-app/src/main/java/com/saytu/app/scan/InsightSql.java" \
+      "$ROOT/backend/saytu-app/src/main/java/com/saytu/app/scan/AutomationSql.java"
 cat > "$WORK/Dump.java" <<'JAVA'
 import java.lang.reflect.*;
 public class Dump { public static void main(String[] a) throws Exception {
   StringBuilder sb = new StringBuilder("{"); boolean first = true;
-  for (String cls : new String[] {"com.saytu.app.scan.ScanSql", "com.saytu.app.scan.ScoreSql", "com.saytu.app.scan.InsightSql"})
+  for (String cls : new String[] {"com.saytu.app.scan.ScanSql", "com.saytu.app.scan.ScoreSql", "com.saytu.app.scan.InsightSql", "com.saytu.app.scan.AutomationSql"})
   for (Field f : Class.forName(cls).getDeclaredFields()) { if (!Modifier.isStatic(f.getModifiers()) || f.getType() != String.class) continue;
     f.setAccessible(true); String v = (String) f.get(null); if (!first) sb.append(','); first = false;
     sb.append('"').append(f.getName()).append("\":\"")

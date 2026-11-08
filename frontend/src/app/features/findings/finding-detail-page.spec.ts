@@ -36,6 +36,8 @@ describe('FindingDetailPage', () => {
     fixture.componentRef.setInput('id', 'f1');
     fixture.detectChanges();
     http.expectOne('/api/v1/findings/f1').flush(DETAIL);
+    http.expectOne('/api/v1/settings/ai').flush({ enabled: false, baseUrl: 'http://ollama:11434', model: 'm', timeoutSeconds: 60 });
+    http.expectOne('/api/v1/findings/f1/ai-explanation').flush(null, { status: 204, statusText: 'No Content' });
     return fixture;
   }
 
@@ -52,6 +54,7 @@ describe('FindingDetailPage', () => {
     expect(el.querySelectorAll('.refs a').length).toBe(2);
     expect(el.textContent).toContain('réservé aux rôles AUDITOR et ADMIN');
     expect(el.querySelector('textarea')).toBeNull();
+    expect(el.querySelector('[data-testid="ai"]')).toBeNull();
   });
 
   it('requires a reason to declare a false positive', async () => {

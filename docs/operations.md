@@ -115,6 +115,9 @@ que trop peu d'analyses ont réussi pour en donner un.
 | `SAYTU_WORKER_MAX_PARALLEL_JOBS` | 2 | branches analysées en même temps |
 | `SAYTU_CHECKOUT_MAX_MB` | 2048 | taille maximale d'une branche clonée (au-delà : job en échec `TOO_LARGE`) |
 | page « Scanners & branches » | — | délai, temps CPU et mémoire de chaque scanner ; activation ; options des outils |
+| `SAYTU_PUBLIC_URL` | http://localhost:8080 | adresse de SAYTU dans les liens des alertes |
+| `SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET` | vide | active la page Utilisateurs (écrit par `scripts/keycloak-admin-client`) |
+| onglets « Planification », « Alertes », « IA locale » | — | voir [automation.md](automation.md) |
 
 Le conteneur `worker` est limité à 4 CPU et 6 Go : (nombre de jobs parallèles) × (mémoire du plus
 gros scanner) doit rester en dessous.

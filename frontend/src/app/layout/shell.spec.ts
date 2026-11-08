@@ -40,10 +40,8 @@ describe('Shell', () => {
     expect(button.getAttribute('aria-expanded')).toBe('true');
   });
 
-  it('routes pages not delivered yet to a placeholder stating their phase', async () => {
-    const harness = await RouterTestingHarness.create();
-    await harness.navigateByUrl('/settings');
-    expect(harness.routeNativeElement?.querySelector('[data-testid="phase-badge"]')?.textContent).toContain('Phase 7');
+  it('no menu entry is a placeholder any more (all ten pages delivered)', () => {
+    expect(NAV_ITEMS.filter(item => item.data).length).toBe(0);
   });
 
   it('starts sign-in instead of rendering protected pages when signed out', async () => {

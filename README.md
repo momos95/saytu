@@ -4,11 +4,10 @@ Plateforme **on-premise** et open source d'audit automatisé de la sécurité et
 code, multi-organisations et multi-dépôts (GitLab, GitHub, Bitbucket, dépôts locaux).
 Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre infrastructure.
 
-> **État : phase 6 / 8** — connexion via Keycloak, connexions Git chiffrées, découverte des
-> organisations, dépôts et branches, **audits réels** dans un worker isolé (Opengrep, Trivy, Gitleaks et
-> l'outil de qualité de chaque langage détecté), scores avec couverture, **tableau de bord**, liste
-> filtrable des vulnérabilités avec triage, détail d'un dépôt et rapports **PDF, HTML, JSON, SARIF**.
-> Planification, alertes et IA locale : phase 7. Détail : [docs/roadmap.md](docs/roadmap.md).
+> **État : phase 7 / 8** — audits réels multi-dépôts (Opengrep, Trivy, Gitleaks et l'outil de qualité
+> de chaque langage), scores avec couverture, tableau de bord, triage, corrections proposées, rapports
+> PDF / HTML / JSON / SARIF, **audits planifiés, alertes webhook, comparaison d'analyses, gestion des
+> utilisateurs** et IA locale optionnelle (Ollama). Phase 8 : durcissement et packaging. Détail : [docs/roadmap.md](docs/roadmap.md).
 
 ## Documentation
 
@@ -20,6 +19,7 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 | [docs/licenses.md](docs/licenses.md) | licences des composants et des règles |
 | [docs/git-connections.md](docs/git-connections.md) | créer les tokens GitLab, GitHub, Bitbucket ; lire un résultat de test |
 | [docs/security.md](docs/security.md) | mesures de sécurité et risques résiduels |
+| [docs/automation.md](docs/automation.md) | planification, webhooks (signature), comparaison, utilisateurs, IA locale |
 | [docs/reports.md](docs/reports.md) | rapports PDF / HTML / JSON / SARIF, tableau de bord, triage |
 | [docs/scoring.md](docs/scoring.md) | formule des scores, couverture, fiabilité, outils par langage |
 | [docs/operations.md](docs/operations.md) | exploitation des audits : base Trivy (en ligne / hors ligne), packs de règles, reprises |

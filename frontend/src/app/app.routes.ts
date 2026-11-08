@@ -32,6 +32,16 @@ export const routes: Routes = [
         loadComponent: () => import('./features/scan-settings/scan-settings-page').then(m => m.ScanSettingsPage),
       },
       {
+        path: 'settings',
+        title: 'Utilisateurs et paramètres · SAYTU',
+        loadComponent: () => import('./features/settings/settings-page').then(m => m.SettingsPage),
+      },
+      {
+        path: 'compare',
+        title: 'Comparaison · SAYTU',
+        loadComponent: () => import('./features/compare/compare-page').then(m => m.ComparePage),
+      },
+      {
         path: 'dashboard',
         title: 'Tableau de bord · SAYTU',
         loadComponent: () => import('./features/dashboard/dashboard-page').then(m => m.DashboardPage),

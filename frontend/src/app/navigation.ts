@@ -20,6 +20,5 @@ export const NAV_ITEMS: NavItem[] = [
   { path: 'scan-settings', label: 'Scanners & branches', icon: '⚙' },
   { path: 'audits', label: 'Audits', icon: '▶' },
   { path: 'findings', label: 'Vulnérabilités', icon: '⚑' },
-  { path: 'settings', label: 'Utilisateurs & paramètres', icon: '☰',
-    data: { title: 'Utilisateurs et paramètres', phase: 7, summary: 'Rôles ADMIN / AUDITOR / VIEWER, planification, webhooks et paramètres de scoring.' } },
+  { path: 'settings', label: 'Utilisateurs & paramètres', icon: '☰' },
 ];

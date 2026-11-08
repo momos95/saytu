@@ -5,7 +5,7 @@ import { AuthService } from '../../core/auth/auth.service';
 import { SEVERITY_LABELS, SHORT_SCANNER_LABELS, location, shortSha } from '../audits/audits.logic';
 import { InsightsApi } from './insights.api';
 import { STATUS_LABELS, TYPE_LABELS } from './insights.logic';
-import { FindingDetail } from './insights.model';
+import { AiExplanation, FindingDetail } from './insights.model';
 
 /** One finding: evidence (secrets masked), references, recommendation, occurrences, triage. */
 @Component({
@@ -118,6 +118,33 @@ import { FindingDetail } from './insights.model';
           </section>
         }
 
+        @if (aiEnabled() || ai()) {
+          <section class="card ai" data-testid="ai">
+            <h2>Explication par IA locale</h2>
+            @if (ai(); as x) {
+              <p class="text">{{ x.content.explanation }}</p>
+              @if (x.content.impact) { <p><strong>Impact :</strong> {{ x.content.impact }}</p> }
+              @if (x.content.steps.length) {
+                <h3>Correction</h3>
+                <ol class="steps">@for (st of x.content.steps; track $index) { <li>{{ st }}</li> }</ol>
+              }
+              @if (x.content.fixedCodeExample) { <h3>Exemple</h3><pre>{{ x.content.fixedCodeExample }}</pre> }
+              @if (x.content.suggestedTests.length) {
+                <h3>Tests</h3>
+                <ul class="steps">@for (t of x.content.suggestedTests; track $index) { <li>{{ t }}</li> }</ul>
+              }
+              <p class="small muted">Généré par {{ x.providerId }} le {{ x.createdAt | date: 'dd/MM/yyyy HH:mm' }}. Texte produit par un
+                modèle : à vérifier ; rien n’est appliqué automatiquement.</p>
+            } @else {
+              <p class="small muted">Le modèle local reçoit le titre, la règle, l’emplacement et l’extrait masqué (pas le code du dépôt).</p>
+            }
+            @if (aiEnabled() && canTriage()) {
+              <button type="button" (click)="explain()" [disabled]="aiBusy()">{{ aiBusy() ? 'Génération… (jusqu’à 2 min)' : (ai() ? 'Régénérer' : 'Expliquer avec l’IA locale') }}</button>
+            }
+            @if (aiError()) { <p class="error small" role="alert">{{ aiError() }}</p> }
+          </section>
+        }
+
         <section class="card">
           <h2>Indication du scanner</h2>
           @if (d.recommendation) {
@@ -181,6 +208,7 @@ import { FindingDetail } from './insights.model';
     .text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
     .refs { margin: 0; padding-left: 18px; font-size: .85rem; overflow-wrap: anywhere; }
     .suggestion { border-left: 3px solid var(--saytu-accent); }
+    .ai { border-left: 3px solid var(--saytu-low); }
     .impact { margin: 8px 0; }
     .steps { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
     .examples { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-bottom: 10px; }
@@ -199,6 +227,10 @@ export class FindingDetailPage implements OnInit {
   readonly error = signal<string | null>(null);
   readonly triageError = signal<string | null>(null);
   readonly busy = signal(false);
+  readonly ai = signal<AiExplanation | null>(null);
+  readonly aiEnabled = signal(false);
+  readonly aiBusy = signal(false);
+  readonly aiError = signal<string | null>(null);
   readonly canTriage = computed(() => this.auth.hasRole('AUDITOR') || this.auth.hasRole('ADMIN'));
   readonly where = computed(() => {
     const d = this.detail();
@@ -209,6 +241,24 @@ export class FindingDetailPage implements OnInit {
     this.api.finding(this.id()).subscribe({
       next: d => this.detail.set(d),
       error: () => this.error.set('Vulnérabilité introuvable.'),
+    });
+    // optional: errors only hide the AI block
+    this.api.aiEnabled().subscribe({ next: s => this.aiEnabled.set(s.enabled), error: () => this.aiEnabled.set(false) });
+    this.api.aiExplanation(this.id()).subscribe({ next: x => this.ai.set(x), error: () => this.ai.set(null) });
+  }
+
+  explain(): void {
+    this.aiBusy.set(true);
+    this.aiError.set(null);
+    this.api.generateAiExplanation(this.id()).subscribe({
+      next: x => {
+        this.aiBusy.set(false);
+        this.ai.set(x);
+      },
+      error: (e: { error?: { detail?: string } }) => {
+        this.aiBusy.set(false);
+        this.aiError.set(e?.error?.detail ?? 'Le modèle local n’a pas répondu.');
+      },
     });
   }
 

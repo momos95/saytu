@@ -306,6 +306,91 @@ check(run("LATEST_BRANCH_FORMULA")[0] == [["v1"]], "formula of the latest branch
 check(run("CONSUME_RESCORE_REQUEST")[0] == [['"V7: PMD severity by category"']], "rescore request left by migration V7 is consumed once")
 check(run("CONSUME_RESCORE_REQUEST")[0] == [], "and only once")
 
+print("== schedules (phase 7)")
+sch = str(uuid.uuid4())
+run("INSERT_SCHEDULE", {"id": sch, "name": "Nuit", "cron": "0 0 2 * * *", "timeZone": "Europe/Paris", "scope": "REPOSITORIES",
+                        "enabled": True, "nextFireAt": "2000-01-01T00:00:00Z", "user": "awa"})
+run("INSERT_SCHEDULE_REPOSITORY", {"id": sch, "targetId": repo})
+sv = run("LIST_SCHEDULES")[0]
+check(len(sv) == 1 and sv[0][1] == "Nuit" and repo in sv[0][13] and sv[0][14] == "{}", "schedule listed with its repositories: " + str(sv[0][13:15]))
+try:
+    run("INSERT_SCHEDULE_NAMESPACE", {"id": sch, "targetId": None})
+    check(False, "target without repository nor namespace refused")
+except RuntimeError:
+    check(True, "target without repository nor namespace refused by ck_schedule_target_one")
+due = run("CLAIM_DUE_SCHEDULES")[0]
+check(len(due) == 1 and due[0][0] == sch, "due schedule claimed")
+check(run("SCHEDULE_HAS_ACTIVE_RUN", {"id": sch})[0] == [["f"]], "no active run yet")
+srun = run("INSERT_SCHEDULED_RUN", {"id": sch, "requestedBy": "planification : Nuit", "scope": '{"repositoryIds":["%s"]}' % repo})[0][0][0]
+check(q(f"SELECT trigger_type, schedule_id FROM scan_run WHERE id = '{srun}'") == [["SCHEDULED", sch]], "scheduled run recorded with its schedule")
+check(run("SCHEDULE_HAS_ACTIVE_RUN", {"id": sch})[0] == [["t"]], "a queued run blocks the next firing")
+run("RECORD_FIRING", {"id": sch, "nextFireAt": "2999-01-01T01:00:00Z", "outcome": "audit lancé", "runId": srun})
+g = run("GET_SCHEDULE", {"id": sch})[0][0]
+check(g[8] == srun and g[9] == "audit lancé" and g[15] == "QUEUED" and g[6].startswith("2999"), "last firing, run status and next firing stored")
+check(run("CLAIM_DUE_SCHEDULES")[0] == [], "not due any more")
+run("RECORD_FIRING", {"id": sch, "nextFireAt": "2999-01-02T01:00:00Z", "outcome": "ignoré", "runId": None})
+check(run("GET_SCHEDULE", {"id": sch})[0][0][8] == srun, "a skipped firing keeps the last run")
+check(sorted(r[0] for r in run("TARGETS_IN_NAMESPACES", {"namespaceIds": [ns]})[0]) == sorted([repo, repo2]), "repositories of an organisation")
+run("UPDATE_SCHEDULE", {"id": sch, "name": "Nuit 2", "cron": "0 0 3 * * *", "timeZone": "UTC", "scope": "ALL_SELECTED", "enabled": False, "nextFireAt": None})
+run("DELETE_SCHEDULE_TARGETS", {"id": sch})
+check(run("GET_SCHEDULE", {"id": sch})[0][0][1:6] == ["Nuit 2", "0 0 3 * * *", "UTC", "ALL_SELECTED", "f"], "schedule updated")
+
+print("== webhooks (phase 7)")
+wh = str(uuid.uuid4())
+run("INSERT_WEBHOOK", {"id": wh, "name": "Équipe sécu", "url": "https://hooks.example/T/abc", "format": "SLACK", "secretCiphertext": None,
+                       "secretKeyId": None, "minSeverity": "HIGH", "events": ["NEW_FINDINGS", "SCAN_COMPLETED"], "enabled": True, "user": "awa"})
+try:
+    run("INSERT_WEBHOOK", {"id": str(uuid.uuid4()), "name": "bad", "url": "ftp://x", "format": "GENERIC", "secretCiphertext": None,
+                           "secretKeyId": None, "minSeverity": "HIGH", "events": ["NEW_FINDINGS"], "enabled": True, "user": "awa"})
+    check(False, "non-http URL refused")
+except RuntimeError:
+    check(True, "non-http URL refused by ck_webhook_url")
+try:
+    run("INSERT_WEBHOOK", {"id": str(uuid.uuid4()), "name": "bad2", "url": "https://x", "format": "GENERIC", "secretCiphertext": None,
+                           "secretKeyId": None, "minSeverity": "HIGH", "events": ["DROP"], "enabled": True, "user": "awa"})
+    check(False, "unknown event refused")
+except RuntimeError:
+    check(True, "unknown event refused by ck_webhook_events")
+wl = run("LIST_WEBHOOKS")[0]
+check(len(wl) == 1 and wl[0][3] == "SLACK" and wl[0][10] == "f", "webhook listed, no secret")
+check([r[0] for r in run("SUBSCRIBED_WEBHOOKS", {"event": "SCAN_COMPLETED"})[0]] == [wh], "subscribed to SCAN_COMPLETED")
+check(run("SUBSCRIBED_WEBHOOKS", {"event": "TEST"})[0] == [], "not subscribed to other events")
+ctx = run("JOB_CONTEXT", {"jobId": job_id})[0]
+check(len(ctx) == 1 and ctx[0][9] == "acme/api", "job context for the payload")
+nf = run("NEW_FINDINGS_OF_JOB", {"jobId": job_id})[0]
+check(all(len(r) == 11 for r in nf), "new open findings of a job: " + str([r[1:3] for r in nf]))
+d1 = run("ENQUEUE_DELIVERY", {"endpointId": wh, "event": "NEW_FINDINGS", "payload": '{"text": "x"}'})[0][0][0]
+claimed = run("CLAIM_DELIVERIES")[0]
+check(len(claimed) == 1 and claimed[0][0] == d1 and claimed[0][5] == "https://hooks.example/T/abc", "due delivery claimed with its endpoint")
+run("DELIVERY_FAILED", {"id": d1, "httpStatus": 500, "error": "HTTP 500", "maxAttempts": 2, "retryInSeconds": 60})
+check(q(f"SELECT status, attempts, last_http_status FROM webhook_delivery WHERE id = '{d1}'") == [["PENDING", "1", "500"]], "failed attempt retried later")
+check(run("CLAIM_DELIVERIES")[0] == [], "not due before the retry delay")
+q(f"UPDATE webhook_delivery SET next_attempt_at = now() WHERE id = '{d1}'")
+run("DELIVERY_FAILED", {"id": d1, "httpStatus": None, "error": "timeout", "maxAttempts": 2, "retryInSeconds": 300})
+check(q(f"SELECT status, attempts FROM webhook_delivery WHERE id = '{d1}'") == [["FAILED", "2"]], "given up after the last attempt")
+d2 = run("ENQUEUE_DELIVERY", {"endpointId": wh, "event": "SCAN_COMPLETED", "payload": '{"text": "y"}'})[0][0][0]
+run("DELIVERY_SUCCEEDED", {"id": d2, "httpStatus": 204})
+check([r[2] for r in run("LIST_DELIVERIES", {"id": wh})[0]] == ["DELIVERED", "FAILED"], "deliveries listed, newest first")
+check(run("GET_WEBHOOK", {"id": wh})[0][0][11] == "DELIVERED", "last delivery status on the endpoint")
+q(f"UPDATE webhook_endpoint SET enabled = FALSE WHERE id = '{wh}'")
+run("ENQUEUE_DELIVERY", {"endpointId": wh, "event": "SCAN_COMPLETED", "payload": "{}"})
+check(run("CLAIM_DELIVERIES")[0] == [], "disabled endpoint: nothing sent")
+
+print("== comparison and AI cache (phase 7)")
+check(run("PREVIOUS_JOB", {"jobId": job_id})[0] == [], "first job has no previous one")
+check(len(run("COMPARE_JOB", {"jobId": job_id})[0]) == 1, "job reference")
+check([e[0] for e in run("COMPARE_EXECUTIONS", {"jobId": job_id})[0]] == ["opengrep", "trivy"], "scanner statuses of a job")
+seen = run("FINDINGS_SEEN_BY_JOB", {"jobId": job_id})[0]
+check(len(seen) >= 1 and all(s[1].startswith("{") for s in seen), "findings seen by a job with their scanners")
+check(len(run("FINDINGS_BY_IDS", {"ids": [s[0] for s in seen]})[0]) == len(seen), "findings loaded by id")
+check(len(run("JOB_SCORE", {"jobId": job_id})[0]) <= 1, "score of a job")
+run("SAVE_REMEDIATION", {"findingId": fid2, "providerId": "ollama:m", "content": '{"explanation": "a"}'})
+run("SAVE_REMEDIATION", {"findingId": fid2, "providerId": "ollama:m", "content": '{"explanation": "b"}'})
+check([r[:2] for r in run("GET_REMEDIATION", {"findingId": fid2})[0]] == [["ollama:m", '{"explanation": "b"}']], "explanation cached, regenerated in place")
+check(run("GET_SETTING", {"key": "ai.ollama"})[0][0][0].find('"enabled": false') >= 0, "AI disabled by default (V8)")
+run("PUT_SETTING", {"key": "ai.ollama", "value": '{"enabled": true}', "user": "awa"})
+check(run("GET_SETTING", {"key": "ai.ollama"})[0] == [['{"enabled": true}']], "setting updated")
+
 print("== reports (phase 6)")
 rep = run("REPORT_FINDINGS", dict(base, statuses=["OPEN"], limit=100))[0]
 check(len(rep) == 2 and all(len(r[-1]) == 64 for r in rep), "report findings with fingerprint")

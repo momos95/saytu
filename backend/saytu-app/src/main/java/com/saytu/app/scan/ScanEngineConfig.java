@@ -108,8 +108,8 @@ public class ScanEngineConfig {
     }
 
     @Bean
-    ResultWriter resultWriter(NamedParameterJdbcTemplate jdbc, JobQueue queue, ScoreService scores) {
-        return new ResultWriter(jdbc, queue, scores);
+    ResultWriter resultWriter(NamedParameterJdbcTemplate jdbc, JobQueue queue, ScoreService scores, WebhookService webhooks) {
+        return new ResultWriter(jdbc, queue, scores, webhooks);
     }
 
     @Bean

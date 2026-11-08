@@ -143,7 +143,7 @@ const PROVIDERS: Record<string, string> = {
           <p class="empty">Jamais audité.</p>
         } @else {
           <div class="table-wrap"><table class="data">
-            <thead><tr><th>Date</th><th>Branche</th><th>Statut</th><th>Commit</th><th class="num">Résultats</th><th class="num">Nouveaux</th><th class="num">Corrigés</th></tr></thead>
+            <thead><tr><th>Date</th><th>Branche</th><th>Statut</th><th>Commit</th><th class="num">Résultats</th><th class="num">Nouveaux</th><th class="num">Corrigés</th><th></th></tr></thead>
             <tbody>
               @for (j of d.recentJobs; track j.id) {
                 <tr>
@@ -152,6 +152,9 @@ const PROVIDERS: Record<string, string> = {
                   <td><span class="pill" [attr.data-status]="j.status" [title]="j.errorMessage ?? ''">{{ runStatus(j.status) }}</span></td>
                   <td class="mono">{{ sha(j.commitSha) }}</td>
                   <td class="num">{{ j.findings }}</td><td class="num">{{ j.newFindings }}</td><td class="num">{{ j.resolvedFindings }}</td>
+                  <td>@if (j.status === 'SUCCEEDED' || j.status === 'PARTIAL') {
+                    <a routerLink="/compare" [queryParams]="{ head: j.id }" title="Comparer avec l’analyse précédente de la branche">comparer</a>
+                  }</td>
                 </tr>
               }
             </tbody>

@@ -8,7 +8,7 @@
 | 4 | Worker, file d'exécution, sandbox, clone sécurisé, Opengrep, Trivy, Gitleaks | ✅ livrée (voir détail) |
 | 5 | Détection des langages, outils de qualité par langage (Checkstyle, PMD, ESLint, PHPCS, Cppcheck, SQLFluff), scoring et couverture | ✅ livrée (voir détail) |
 | 6 | Dashboard Angular, détail dépôt, liste/détail des vulnérabilités et triage, rapports HTML/PDF/JSON/SARIF | ✅ livrée (voir détail) |
-| 7 | Planification cron, historique, comparaison de scans, webhooks, recommandations, Ollama | à faire |
+| 7 | Planification cron, historique, comparaison de scans, webhooks, gestion des utilisateurs, recommandations, Ollama | ✅ livrée (voir détail) |
 | 8 | Durcissement, tests de bout en bout, SBOM, guides d'exploitation et de mise à jour hors ligne | à faire |
 
 ## Renommage AfriCodeShield → SAYTU (4 novembre 2026)
@@ -33,6 +33,38 @@ chiffrement) : une installation existante doit être réinitialisée.
 **Avec Docker Compose** : `docker compose down -v`, renommer les variables `ACS_*` en `SAYTU_*` dans
 `.env` (ou le regénérer avec `scripts/generate-secrets.sh` après l'avoir supprimé), puis
 `docker compose up -d --build`.
+
+## Phase 7 — détail (8 novembre 2026)
+
+### Livré et vérifié dans l'environnement de développement
+* SQL (`AutomationSql`, migration V8) ajouté à `scripts/verify-scan-sql.sh` — **131 contrôles réussis
+  sur PostgreSQL 16** : planifications (cibles, échéances verrouillées, blocage si l'audit précédent
+  tourne, dernier déclenchement), webhooks (contraintes d'URL et d'événements, abonnements, boîte
+  d'envoi : réessai, abandon, point de terminaison désactivé), comparaison, cache des explications IA,
+  réglages.
+* Règles pures (`AutomationRulesTest`, 6 tests) : contenu des alertes (gravité minimale, aucune preuve),
+  format Slack, signature HMAC comparée à `openssl`, délais de réessai, masquage et contrôle des URL,
+  validation des webhooks, classement « introduite / corrigée / non vérifiable » (un outil en échec ne
+  prouve jamais une correction), périmètre planifié, réglages IA. `UserRulesTest` (2 tests).
+* `saytu-core` 86/86, `saytu-git` 89/89, `saytu-scan` 42/42 ; frontend **22 specs** de logique.
+
+### Livré, écrit pour compiler, **non exécuté ici**
+* Spring : `ScheduleService`/`ScheduleTrigger` (cron Spring, fuseau, intervalle ≥ 15 min),
+  `WebhookService`/`WebhookDispatcher` (secret chiffré comme les jetons Git, HMAC, réessais),
+  `JobComparisonService`, `UserService`/`KeycloakAdminClient` (client `saytu-admin-api`, royaume saytu
+  seulement), `AiService`/`OllamaRemediationProvider`. Tests Maven : `CronAndAiSpringTest`,
+  `AutomationControllerSecurityTest` (rôles, 503 si non configuré).
+* Scripts `keycloak-admin-client.ps1` / `.sh` (kcadm dans le conteneur Keycloak).
+* Angular : page Utilisateurs & paramètres (4 onglets), page Comparaison, bloc « Explication par IA
+  locale » ; specs TestBed. Les dix pages de la spécification sont livrées.
+
+### Limites connues de la phase 7
+* « Ignorer les branches inchangées » d'une planification n'est pas implémenté.
+* Gestion des utilisateurs : nécessite d'exécuter une fois le script `keycloak-admin-client` ; pas
+  d'envoi d'e-mail (le mot de passe temporaire est affiché à l'administrateur).
+* IA locale : le modèle ne voit pas le code autour de la ligne (non conservé) ; qualité variable selon
+  le modèle ; génération synchrone (jusqu'au délai réglé).
+* Les envois de webhooks n'utilisent pas `HTTPS_PROXY`, seulement le proxy Java (`SAYTU_JAVA_PROXY_OPTS`).
 
 ## Phase 6b — score v2, plan d'action et corrections proposées (6 novembre 2026)
 

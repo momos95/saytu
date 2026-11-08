@@ -14,6 +14,8 @@ import com.saytu.scan.ScannerOutcome;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -37,11 +39,13 @@ public class ResultWriter {
     private final NamedParameterJdbcTemplate jdbc;
     private final JobQueue queue;
     private final ScoreService scores;
+    private final WebhookService webhooks;
 
-    public ResultWriter(NamedParameterJdbcTemplate jdbc, JobQueue queue, ScoreService scores) {
+    public ResultWriter(NamedParameterJdbcTemplate jdbc, JobQueue queue, ScoreService scores, WebhookService webhooks) {
         this.jdbc = jdbc;
         this.queue = queue;
         this.scores = scores;
+        this.webhooks = webhooks;
     }
 
     @Transactional
@@ -138,6 +142,20 @@ public class ResultWriter {
             Map<ScannerId, ScannerExecutionStatus> executions = new EnumMap<>(ScannerId.class);
             outcome.scanners().forEach(s -> executions.put(s.scanner(), s.status()));
             scores.recordJob(job.id(), job.repositoryId(), job.branch(), outcome.languages(), executions);
+        }
+        if (status != ScanStatus.CANCELLED) {
+            // after commit, in its own transaction: an alerting problem can never roll back the results
+            UUID finishedJob = job.id();
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        webhooks.jobFinished(finishedJob);
+                    }
+                });
+            } else {
+                webhooks.jobFinished(finishedJob);
+            }
         }
         queue.completeRunIfDone(job.runId());
         return summary;

@@ -86,6 +86,15 @@ licence permissive (par exemple les modèles publiés sous Apache-2.0) et vérif
 **de la taille exacte** choisie : au sein d'une même famille, certaines tailles ont des licences
 plus restrictives.
 
+| Composant | Licence | Statut |
+|---|---|---|
+| Ollama (image `ollama/ollama`, profil `ai`) | MIT | ✅ phase 7, optionnel, désactivé par défaut |
+| qwen2.5-coder **7B** (modèle proposé par défaut) | Apache-2.0 | téléchargé par l'exploitant (`ollama pull`) ; la taille 3B est sous licence Qwen Research, plus restrictive |
+
+Phase 7 n'ajoute aucune bibliothèque au backend ni au frontend : planification (`CronExpression` de
+Spring Framework, Apache-2.0, déjà présent), webhooks et client Keycloak (`java.net.http` du JDK, HMAC
+`javax.crypto`), comparaison et réglages en code SAYTU.
+
 ## Procédure de contrôle
 
 1. À chaque ajout de dépendance : licence vérifiée sur le dépôt officiel, ajout dans ce tableau.
