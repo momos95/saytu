@@ -99,6 +99,7 @@ Dépôts locaux : les placer dans `~/saytu/data/local-repos/`, ils apparaissent 
 | « Certificat TLS non reconnu » en testant une connexion Git | même cause : certificat dans `data/ca/`, puis `docker compose up -d --build api` |
 | Keycloak : `password authentication failed for user "keycloak"` | `docker compose up -d` : le service `keycloak-db-init` recrée le rôle et réapplique `KEYCLOAK_DB_PASSWORD` ; voir `docker compose logs keycloak-db-init` |
 | `port is already allocated` (8080 ou 8180 pris par un autre projet) | dans `.env` : `SAYTU_HTTP_PORT=8090` et `SAYTU_PUBLIC_URL=http://localhost:8090` (ou `SAYTU_KEYCLOAK_PORT` et `SAYTU_KEYCLOAK_PUBLIC_URL`), puis `docker compose up -d` |
+| Page blanche « HTTP ERROR 401 » sur `localhost:8180` à la connexion | un autre programme écoute aussi sur 8180 (souvent `wslrelay.exe` : un service lancé dans une distribution WSL) et prend la priorité sur `localhost`. Vérifier avec `netstat -ano \| findstr :8180` puis `tasklist /fi "PID eq <pid>"` ; arrêter ce programme ou passer à `SAYTU_KEYCLOAK_PORT=8181` / `SAYTU_KEYCLOAK_PUBLIC_URL=http://localhost:8181`, puis `docker compose up -d` |
 | `web` en « Restarting (2) », journal `export: ... bad variable name` | fichiers convertis en CRLF par Git pour Windows : corrigé à la construction de l'image, `docker compose up -d --build web` |
 | Repartir de zéro | `docker compose down -v`, supprimer `.env`, reprendre à `scripts/generate-secrets.sh` |
 
