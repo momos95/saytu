@@ -11,6 +11,7 @@ import com.saytu.core.scan.ScanContext;
 import com.saytu.core.scan.ScannerAdapter;
 import com.saytu.scan.git.CheckoutException;
 import com.saytu.scan.git.CheckoutRequest;
+import com.saytu.scan.git.RemoteRefs;
 import com.saytu.scan.git.CheckoutResult;
 import com.saytu.scan.git.GitCheckout;
 import com.saytu.scan.lang.LanguageDetector;
@@ -75,6 +76,16 @@ public final class ScanJobRunner {
             } catch (CheckoutException e) {
                 return new JobOutcome(null, 0, 0, null, List.of(), e.kind() + ": " + e.getMessage());
             }
+            // branch / tag hygiene (Git flow): a failure here never fails the audit
+            RemoteRefs refs = null;
+            String refsError = null;
+            try {
+                Path refsDir = jobDir.resolve("refs");
+                createPrivateDir(refsDir);
+                refs = checkout.listRefs(request, refsDir);
+            } catch (CheckoutException e) {
+                refsError = e.kind() + ": " + e.getMessage();
+            }
             LanguageProfile languages = new LanguageDetector().detect(source.sourceDir());
             List<ScannerOutcome> outcomes = new ArrayList<>();
             for (ScannerPlan plan : plans) {
@@ -84,7 +95,8 @@ public final class ScanJobRunner {
                 }
                 outcomes.add(runScanner(jobId, jobDir, source, languages, plan));
             }
-            return new JobOutcome(source.commitSha(), source.totalBytes(), source.fileCount(), languages, outcomes, null);
+            return new JobOutcome(source.commitSha(), source.totalBytes(), source.fileCount(), languages, outcomes, null,
+                    refs, refsError);
         } catch (IOException e) {
             return new JobOutcome(null, 0, 0, null, List.of(), "FAILED: cannot prepare the job directory");
         } finally {

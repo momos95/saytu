@@ -44,6 +44,8 @@ export interface Repository {
   lastActivityAt: string | null;
   /** language keys of the latest analysed branch, most present first */
   languages: string[];
+  /** Git workflow check of the latest audit (main/master on the latest tag, develop), null if never checked */
+  workflowStatus: 'PASS' | 'WARN' | 'FAIL' | null;
 }
 
 export interface PageView<T> {

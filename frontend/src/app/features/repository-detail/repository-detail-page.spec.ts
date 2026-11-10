@@ -35,12 +35,26 @@ describe('RepositoryDetailPage', () => {
         title: 'Mettre à jour log4j-core 2.14.1 vers 2.16.0 ou plus', target: 'log4j-core 2.14.1', fixedVersion: '2.16.0',
         severity: 'CRITICAL', findings: 2, securityBefore: 59, securityAfter: 90.9, gain: 31.9, exampleFindingId: 'f1',
         query: { repositoryId: 'r1', branch: 'main', status: 'OPEN', q: 'log4j-core' } }] },
+      workflow: { status: 'FAIL', checkedAt: '2026-11-10T09:00:00Z', error: null, report: {
+        status: 'FAIL', productionBranch: 'main', productionSha: 'a'.repeat(40), developSha: null, latestTag: 'v1.2.0',
+        latestTagSha: 'c'.repeat(40), releaseTags: 3, checks: [
+          { id: 'PRODUCTION_BRANCH', status: 'PASS', message: 'Branche de production : main.' },
+          { id: 'DEVELOP_BRANCH', status: 'FAIL', message: 'Aucune branche develop.' },
+          { id: 'PRODUCTION_ON_LATEST_TAG', status: 'FAIL', message: 'main (aaaaaaaa) ne pointe pas sur le dernier tag v1.2.0 (cccccccc).' },
+        ] } },
     });
     await fixture.whenStable();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('h1')?.textContent).toContain('acme/api');
     expect(el.textContent).toContain('GitLab');
     expect(el.querySelector('[data-testid="branch"]')?.textContent).toContain('pas encore de score');
+    const wf = el.querySelector('[data-testid="workflow"]')!;
+    expect(wf.querySelector('[data-testid="workflow-badge"]')?.textContent).toContain('non conforme');
+    const checks = Array.from(wf.querySelectorAll('[data-testid="workflow-check"]'));
+    expect(checks.map(c => c.getAttribute('data-status'))).toEqual(['FAIL', 'FAIL', 'PASS']);
+    expect(checks[0].textContent).toContain('Branche de travail develop');
+    expect(checks[1].textContent).toContain('ne pointe pas sur le dernier tag v1.2.0');
+    expect(wf.textContent).toContain('3 tag(s) de version');
     const action = el.querySelector('[data-testid="action"]')!.textContent!;
     expect(action).toContain('Mettre à jour log4j-core');
     expect(action).toContain('+31,9 pts sécurité');

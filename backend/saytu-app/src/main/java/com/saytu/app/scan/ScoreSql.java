@@ -91,6 +91,16 @@ final class ScoreSql {
             FROM score_snapshot s JOIN scan_job j ON j.id = s.scan_job_id
             WHERE j.scan_run_id = :runId AND s.scope_type = 'BRANCH'""";
 
+    /** Git flow check of the repository (from the refs listed by the latest audit). */
+    static final String RECORD_WORKFLOW = """
+            UPDATE source_repository SET workflow_status = :status, workflow_report = CAST(:report AS jsonb),
+                   workflow_checked_at = now(), workflow_error = NULL
+            WHERE id = :repositoryId""";
+
+    /** The refs could not be listed: the previous check is kept, with the reason. */
+    static final String RECORD_WORKFLOW_ERROR = """
+            UPDATE source_repository SET workflow_error = :error WHERE id = :repositoryId""";
+
     static final String RECORD_LANGUAGES = """
             UPDATE source_repository SET languages = CAST(:labels AS jsonb), languages_updated_at = now()
             WHERE id = :repositoryId""";

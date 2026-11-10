@@ -5,12 +5,13 @@ import { AuthService } from '../../core/auth/auth.service';
 import { FlowChart, SeverityBreakdown, TrendChart } from '../../shared/charts';
 import { ReportDownload } from '../../shared/report-download';
 import { LanguageChips, ScoreBadges } from '../../shared/score-badges';
+import { WorkflowBadge } from '../../shared/workflow-badge';
 import { AuditsApi } from '../audits/audits.api';
 import { RUN_STATUS_LABELS, SEVERITY_LABELS, SHORT_SCANNER_LABELS, shortSha } from '../audits/audits.logic';
 import { RunStatus } from '../audits/audits.model';
 import { InsightsApi } from '../findings/insights.api';
-import { ACTION_LABELS, SEVERITIES, gainLabel } from '../findings/insights.logic';
-import { RepositoryOverview } from '../findings/insights.model';
+import { ACTION_LABELS, SEVERITIES, WORKFLOW_CHECK_LABELS, WORKFLOW_LABELS, gainLabel, sortedWorkflowChecks } from '../findings/insights.logic';
+import { RepositoryOverview, WorkflowCheckView, WorkflowStatus } from '../findings/insights.model';
 
 const PROVIDERS: Record<string, string> = {
   GITLAB: 'GitLab', GITHUB: 'GitHub', BITBUCKET_CLOUD: 'Bitbucket Cloud', BITBUCKET_DATA_CENTER: 'Bitbucket Data Center', LOCAL: 'Dépôt local',
@@ -19,7 +20,7 @@ const PROVIDERS: Record<string, string> = {
 /** Everything about one repository: scores per branch, trend, open findings, frequent rules, recent jobs. */
 @Component({
   selector: 'saytu-repository-detail-page',
-  imports: [DatePipe, RouterLink, ScoreBadges, LanguageChips, TrendChart, FlowChart, SeverityBreakdown, ReportDownload],
+  imports: [DatePipe, RouterLink, ScoreBadges, LanguageChips, WorkflowBadge, TrendChart, FlowChart, SeverityBreakdown, ReportDownload],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="small"><a routerLink="/repositories">← Organisations &amp; dépôts</a></p>
@@ -50,6 +51,35 @@ const PROVIDERS: Record<string, string> = {
       <section class="card score-line">
         <span class="muted small">Score du dépôt (branche la plus faible)</span>
         <saytu-score-badges [score]="d.score" />
+      </section>
+
+      <section class="card workflow" data-testid="workflow">
+        <h2>Organisation des branches
+          @if (d.workflow?.status; as ws) { <saytu-workflow-badge [status]="ws" /> }</h2>
+        @if (d.workflow?.report; as w) {
+          <p class="small muted">Attendu : une branche de production (main ou master) qui pointe sur le dernier tag de version,
+            et une branche develop pour le travail en cours. Vérifié à chaque audit
+            @if (d.workflow?.checkedAt) { (dernier : {{ d.workflow?.checkedAt | date: 'dd/MM/yyyy HH:mm' }}) }.</p>
+          <ul class="checks">
+            @for (c of checks(w.checks); track c.id) {
+              <li data-testid="workflow-check" [attr.data-status]="c.status">
+                <span class="mark" [attr.data-status]="c.status" [attr.aria-label]="wfLabel(c.status)">{{ mark(c.status) }}</span>
+                <div><strong>{{ checkLabel(c.id) }}</strong><div class="small">{{ c.message }}</div></div>
+              </li>
+            }
+          </ul>
+          <p class="small muted refs">
+            @if (w.productionBranch) { {{ w.productionBranch }} <span class="mono">{{ sha(w.productionSha) }}</span> }
+            @if (w.latestTag) { · dernier tag {{ w.latestTag }} <span class="mono">{{ sha(w.latestTagSha) }}</span> }
+            · {{ w.releaseTags }} tag(s) de version
+            @if (w.developSha) { · develop <span class="mono">{{ sha(w.developSha) }}</span> }
+          </p>
+        } @else if (!d.workflow?.error) {
+          <p class="empty">Pas encore vérifiée : elle le sera au prochain audit du dépôt.</p>
+        }
+        @if (d.workflow?.error) {
+          <p class="small warn-text" role="status">Dernier audit : branches et tags non lus ({{ d.workflow?.error }})@if (d.workflow?.report) {&nbsp;; résultat précédent affiché}.</p>
+        }
       </section>
 
       <section class="card plan" data-testid="action-plan">
@@ -177,6 +207,17 @@ const PROVIDERS: Record<string, string> = {
     .action-title { overflow-wrap: anywhere; }
     .action-meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; }
     .gain { color: var(--saytu-accent); font-weight: 600; }
+    .workflow h2 { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .checks { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .checks li { display: flex; gap: 10px; align-items: flex-start; }
+    .checks li > div { min-width: 0; overflow-wrap: anywhere; }
+    .mark { flex: none; width: 1.4rem; height: 1.4rem; border-radius: 50%; display: inline-flex; align-items: center;
+            justify-content: center; font-weight: 700; font-size: .8rem; color: #fff; }
+    .mark[data-status="PASS"] { background: var(--saytu-accent); }
+    .mark[data-status="WARN"] { background: var(--saytu-medium); }
+    .mark[data-status="FAIL"] { background: var(--saytu-critical); }
+    .refs { display: flex; flex-wrap: wrap; gap: 4px; }
+    .warn-text { color: var(--saytu-medium); }
     section.card { margin-bottom: 14px; }
     .grid section.card { margin-bottom: 0; }
     @media (max-width: 640px) { .actions { align-items: flex-start; } }
@@ -245,5 +286,21 @@ export class RepositoryDetailPage implements OnInit {
 
   sha(s: string | null): string {
     return s ? shortSha(s) : '—';
+  }
+
+  checks(list: WorkflowCheckView[]): WorkflowCheckView[] {
+    return sortedWorkflowChecks(list);
+  }
+
+  checkLabel(id: string): string {
+    return WORKFLOW_CHECK_LABELS[id] ?? id;
+  }
+
+  wfLabel(s: WorkflowStatus): string {
+    return WORKFLOW_LABELS[s];
+  }
+
+  mark(s: WorkflowStatus): string {
+    return s === 'PASS' ? '✓' : s === 'WARN' ? '!' : '✗';
   }
 }

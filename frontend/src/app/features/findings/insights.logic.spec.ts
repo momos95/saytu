@@ -1,7 +1,18 @@
-import { ageInDays, gainLabel, fileNameFrom, filtersFromParams, filtersToHttpPairs, filtersToParams, flowBars, severityTotals, shares, toggle, trendSeries } from './insights.logic';
+import { ageInDays, gainLabel, fileNameFrom, filtersFromParams, filtersToHttpPairs, filtersToParams, flowBars, severityTotals, shares, sortedWorkflowChecks, toggle, trendSeries } from './insights.logic';
 import { SeverityTypeCounts, TrendPoint } from './insights.model';
 
 describe('insights logic', () => {
+  it('orders workflow checks failures first, then by check order', () => {
+    const sorted = sortedWorkflowChecks([
+      { id: 'PRODUCTION_BRANCH', status: 'PASS', message: '' },
+      { id: 'PRODUCTION_ON_LATEST_TAG', status: 'FAIL', message: '' },
+      { id: 'RELEASE_TAGS', status: 'WARN', message: '' },
+      { id: 'DEVELOP_BRANCH', status: 'FAIL', message: '' },
+      { id: 'FUTURE_CHECK', status: 'PASS', message: '' },
+    ]);
+    expect(sorted.map(c => c.id)).toEqual(['DEVELOP_BRANCH', 'PRODUCTION_ON_LATEST_TAG', 'RELEASE_TAGS', 'PRODUCTION_BRANCH', 'FUTURE_CHECK']);
+  });
+
   it('reads filters from the URL, dropping unknown values', () => {
     const f = filtersFromParams({ severity: 'high,critical,bogus,HIGH', status: ['OPEN'], type: 'secret', q: '  sql  ', branch: '' });
     expect(f).toEqual({ severity: ['HIGH', 'CRITICAL'], status: ['OPEN'], type: ['SECRET'], q: 'sql' });

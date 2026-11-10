@@ -79,6 +79,38 @@ class GitCheckoutTest {
     }
 
     @Test
+    void listsBranchesAndTagsWithAnnotatedTagsPeeled() throws Exception {
+        Path repo = TestSupport.repo(root, "flow", Map.of("README.md", "v1\n"));
+        String v1 = TestSupport.git(repo, "rev-parse", "HEAD");
+        TestSupport.git(repo, "-c", "user.name=t", "-c", "user.email=t@example.org", "tag", "-a", "v1.0.0", "-m", "release 1.0.0");
+        TestSupport.git(repo, "tag", "light-1", v1);
+        TestSupport.git(repo, "checkout", "-q", "-b", "develop");
+        TestSupport.write(repo, Map.of("work.txt", "wip\n"));
+        TestSupport.git(repo, "add", "-A");
+        TestSupport.git(repo, "commit", "-q", "-m", "work");
+        String dev = TestSupport.git(repo, "rev-parse", "HEAD");
+        TestSupport.git(repo, "checkout", "-q", "main");
+
+        RemoteRefs refs = checkout().listRefs(new CheckoutRequest(repo.toUri(), "main", null, true), jobDir);
+
+        assertEquals(Map.of("main", v1, "develop", dev), refs.branches());
+        assertEquals(v1, refs.tags().get("v1.0.0"), "annotated tag resolved to its commit");
+        assertEquals(v1, refs.tags().get("light-1"));
+        com.saytu.core.workflow.WorkflowCheck.Report report = com.saytu.core.workflow.WorkflowCheck.evaluate(refs.branches(), refs.tags());
+        assertEquals(com.saytu.core.workflow.WorkflowCheck.Status.PASS, report.status());
+    }
+
+    @Test
+    void lsRemoteOutputIsParsedDefensively() {
+        String a = "a".repeat(40);
+        String b = "b".repeat(40);
+        RemoteRefs r = RemoteRefs.parse(a + "\trefs/heads/main\n" + b + "\trefs/tags/v2\n" + a + "\trefs/tags/v2^{}\n"
+                + "garbage line\n" + a + "\trefs/pull/1/head\n" + "zz" + "\trefs/heads/x\n");
+        assertEquals(Map.of("main", a), r.branches());
+        assertEquals(Map.of("v2", a), r.tags());
+    }
+
+    @Test
     void unknownBranchIsReported() throws Exception {
         Path repo = TestSupport.repo(root, "app", Map.of("a.txt", "a"));
         CheckoutException e = assertThrows(CheckoutException.class,

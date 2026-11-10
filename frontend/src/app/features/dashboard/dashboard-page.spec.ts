@@ -15,11 +15,11 @@ function dashboard(audited: number) {
   return {
     global: audited ? SCORE : null,
     counters: { auditedRepositories: audited, openFindings: 7, newLast7Days: 7, resolvedLast7Days: 1, triaged: 2,
-      lastAuditAt: '2026-11-06T09:00:00Z' },
+      lastAuditAt: '2026-11-06T09:00:00Z', workflowChecked: 4, workflowPass: 1, workflowFail: 2 },
     openBySeverity: { CRITICAL: { ...zero, SECRET: 1 }, HIGH: { ...zero, DEPENDENCY: 6 }, MEDIUM: zero, LOW: zero, INFO: zero },
     trend: [], weeklyFlow: [{ week: '2026-11-02T00:00:00Z', opened: 7, resolved: 1 }],
     priorities: [{ repositoryId: 'r1', repository: 'acme/api', languages: ['java'], critical: 1, high: 6, securityFindings: 7,
-      openFindings: 7, score: SCORE }],
+      openFindings: 7, score: SCORE, workflowStatus: 'WARN' }],
     recentRuns: [],
   };
 }
@@ -51,6 +51,10 @@ describe('DashboardPage', () => {
     expect(cards[0]).toContain('couverture insuffisante');
     expect(cards[2]).toContain('81');
     expect(el.querySelector('[data-testid="priority"]')?.textContent).toContain('1 critique(s)');
+    expect(el.querySelector('[data-testid="priority"] [data-testid="workflow-badge"]')?.textContent).toContain('à surveiller');
+    const wf = el.querySelector('[data-testid="workflow-kpi"]')!.textContent!;
+    expect(wf).toContain('1 / 4');
+    expect(wf).toContain('2 non conforme(s)');
     expect(el.textContent).toContain('vulnérabilités ouvertes');
   });
 

@@ -20,6 +20,7 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 | [docs/git-connections.md](docs/git-connections.md) | créer les tokens GitLab, GitHub, Bitbucket ; lire un résultat de test |
 | [docs/security.md](docs/security.md) | mesures de sécurité et risques résiduels |
 | [docs/automation.md](docs/automation.md) | planification, webhooks (signature), comparaison, utilisateurs, IA locale |
+| [docs/branch-workflow.md](docs/branch-workflow.md) | contrôle de l'organisation des branches (main/master sur le dernier tag, develop) |
 | [docs/reports.md](docs/reports.md) | rapports PDF / HTML / JSON / SARIF, tableau de bord, triage |
 | [docs/scoring.md](docs/scoring.md) | formule des scores, couverture, fiabilité, outils par langage |
 | [docs/operations.md](docs/operations.md) | exploitation des audits : base Trivy (en ligne / hors ligne), packs de règles, reprises |

@@ -242,6 +242,25 @@ try:
 except RuntimeError:
     check(True, "labels must be a JSON array (ck_repository_languages)")
 
+print("== git workflow check")
+c0 = run("DASHBOARD_COUNTERS")[0][0]
+check(c0[6:9] == ["0", "0", "0"], "no repository checked yet: " + str(c0[6:]))
+run("RECORD_WORKFLOW_ERROR", {"error": "authentication failed", "repositoryId": repo})
+check(q(f"SELECT workflow_status, workflow_error FROM source_repository WHERE id = '{repo}'") == [["", "authentication failed"]], "refs error stored without a report")
+report = '{"status": "FAIL", "productionBranch": "main", "latestTag": "v1.2.0", "checks": [{"id": "DEVELOP_BRANCH", "status": "FAIL", "message": "x"}]}'
+run("RECORD_WORKFLOW", {"status": "FAIL", "report": report, "repositoryId": repo})
+w = q(f"SELECT workflow_status, workflow_report->>'latestTag', workflow_error, workflow_checked_at IS NOT NULL FROM source_repository WHERE id = '{repo}'")
+check(w == [["FAIL", "v1.2.0", "", "t"]], "workflow report stored, error cleared: " + str(w))
+run("RECORD_WORKFLOW_ERROR", {"error": "timeout", "repositoryId": repo})
+check(q(f"SELECT workflow_status, workflow_error FROM source_repository WHERE id = '{repo}'") == [["FAIL", "timeout"]], "previous report kept on a refs error")
+try:
+    run("RECORD_WORKFLOW", {"status": "OK", "report": report, "repositoryId": repo})
+    check(False, "unknown workflow status refused")
+except RuntimeError:
+    check(True, "unknown workflow status refused (check constraint)")
+c1 = run("DASHBOARD_COUNTERS")[0][0]
+check(c1[6:9] == ["1", "0", "1"], "workflow counters: checked, pass, fail: " + str(c1[6:]))
+
 print("== triage (phase 6)")
 fid2 = r2[0][0]
 lock = run("LOCK_FINDING", {"findingId": fid2})[0]
@@ -286,9 +305,9 @@ flow = run("WEEKLY_FLOW", {"repositoryId": None})[0]
 check(len(flow) == 12 and sum(int(r[1]) for r in flow) == 3, "12 weeks, 3 findings opened: " + str([r[1:] for r in flow]))
 check(len(run("WEEKLY_FLOW", {"repositoryId": repo2})[0]) == 12, "weekly flow of a repository")
 prio = run("PRIORITY_REPOSITORIES", {"limit": 10})[0]
-check(len(prio) == 1 and prio[0][1] == "acme/api" and prio[0][6] == "2" and prio[0][9] == "85.32", "priority repositories with open counts and score: " + str(prio))
+check(len(prio) == 1 and prio[0][1] == "acme/api" and prio[0][7] == "2" and prio[0][10] == "85.32", "priority repositories with open counts and score: " + str(prio))
 info = run("REPOSITORY_INFO", {"repositoryId": repo})[0]
-check(len(info) == 1 and info[0][1] == "acme/api" and info[0][12] == "acme" and info[0][14] == "GITLAB", "repository info with organisation and platform")
+check(len(info) == 1 and info[0][1] == "acme/api" and info[0][16] == "acme" and info[0][18] == "GITLAB", "repository info with organisation and platform")
 check(sorted(run("OPEN_BY_BRANCH", {"repositoryId": repo})[0]) == [["main", "MEDIUM", "SECURITY", "2"]], "open findings per branch")
 rules = run("TOP_RULES", {"repositoryId": repo})[0]
 check(len(rules) == 2 and rules[0][4] == "2", "frequent rules with severity rank: " + str(rules))

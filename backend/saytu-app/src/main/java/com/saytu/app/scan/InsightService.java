@@ -43,7 +43,8 @@ public class InsightService {
     }
 
     public record Counters(long auditedRepositories, long openFindings, long newLast7Days, long resolvedLast7Days,
-                           long triaged, Instant lastAuditAt) {
+                           long triaged, Instant lastAuditAt, long workflowChecked, long workflowPass,
+                           long workflowFail) {
     }
 
     public record TrendPoint(Instant day, Double security, Double quality, Double global, double coverage,
@@ -55,7 +56,8 @@ public class InsightService {
 
     /** score is null when the repository has open findings but no score yet. */
     public record RepositoryPriority(UUID repositoryId, String repository, List<String> languages, long critical,
-                                     long high, long securityFindings, long openFindings, ScoreView score) {
+                                     long high, long securityFindings, long openFindings, ScoreView score,
+                                     String workflowStatus) {
     }
 
     /**
@@ -70,6 +72,16 @@ public class InsightService {
                                  String visibility, boolean archived, boolean removed, List<String> languages,
                                  Instant languagesUpdatedAt, Instant lastActivityAt, UUID namespaceId, String namespace,
                                  String connectionName, String providerType) {
+    }
+
+    /**
+     * Branch and release hygiene (main/master on the latest version tag, a develop branch), from the latest audit.
+     *
+     * @param status    PASS, WARN, FAIL; null when never checked
+     * @param report    WorkflowCheck report (status, productionBranch, latestTag, checks…), null when never checked
+     * @param error     why the latest audit could not list the refs (the previous report is kept)
+     */
+    public record Workflow(String status, Instant checkedAt, String error, Map<String, Object> report) {
     }
 
     public record BranchOverview(String branch, ScoreView score, Map<String, Long> openBySeverity, long openFindings) {
@@ -104,7 +116,7 @@ public class InsightService {
     public record RepositoryOverview(RepositoryInfo repository, ScoreView score, List<BranchOverview> branches,
                                      Map<String, Map<String, Long>> openBySeverity, List<TrendPoint> trend,
                                      List<FlowPoint> weeklyFlow, List<RuleCount> topRules, List<JobLine> recentJobs,
-                                     ActionPlan actionPlan) {
+                                     ActionPlan actionPlan, Workflow workflow) {
     }
 
     @Transactional(readOnly = true)
@@ -112,13 +124,15 @@ public class InsightService {
         MapSqlParameterSource none = new MapSqlParameterSource().addValue("repositoryId", null, Types.OTHER);
         Counters counters = jdbc.queryForObject(InsightSql.DASHBOARD_COUNTERS, new MapSqlParameterSource(), (rs, i) ->
                 new Counters(rs.getLong("audited_repositories"), rs.getLong("open_findings"), rs.getLong("new_last_7_days"),
-                        rs.getLong("resolved_last_7_days"), rs.getLong("triaged"), JdbcRows.instant(rs, "last_audit_at")));
+                        rs.getLong("resolved_last_7_days"), rs.getLong("triaged"), JdbcRows.instant(rs, "last_audit_at"),
+                        rs.getLong("workflow_checked"), rs.getLong("workflow_pass"), rs.getLong("workflow_fail")));
         List<RepositoryPriority> priorities = jdbc.query(InsightSql.PRIORITY_REPOSITORIES,
                 new MapSqlParameterSource("limit", PRIORITY_LIMIT), (rs, i) -> new RepositoryPriority(
                         JdbcRows.uuid(rs, "repository_id"), rs.getString("full_name"),
                         ScanService.languageLabels(rs.getString("languages")), rs.getLong("critical"), rs.getLong("high"),
                         rs.getLong("security_findings"), rs.getLong("open_findings"),
-                        rs.getString("reliability") == null ? null : ScoreService.view(rs)));
+                        rs.getString("reliability") == null ? null : ScoreService.view(rs),
+                        rs.getString("workflow_status")));
         return new Dashboard(scores.summary().global(), counters, openBySeverity(none),
                 trend("GLOBAL", null), flow(null), priorities, scans.list(0, 5).items());
     }
@@ -133,6 +147,9 @@ public class InsightService {
                 JdbcRows.instant(rs, "languages_updated_at"), JdbcRows.instant(rs, "last_activity_at"),
                 JdbcRows.uuid(rs, "namespace_id"), rs.getString("namespace"), rs.getString("connection_name"),
                 rs.getString("provider_type")));
+        Workflow workflow = jdbc.query(InsightSql.REPOSITORY_INFO, p, (rs, i) -> workflow(rs.getString("workflow_status"),
+                JdbcRows.instant(rs, "workflow_checked_at"), rs.getString("workflow_error"),
+                rs.getString("workflow_report"))).stream().findFirst().orElse(null);
         if (info.isEmpty()) {
             throw new ResourceNotFoundException("Repository " + repositoryId + " not found");
         }
@@ -164,7 +181,12 @@ public class InsightService {
         ScoreView latest = scores.summary().repositories().stream().filter(r -> r.repositoryId().equals(repositoryId))
                 .map(ScoreService.RepositoryScore::score).findFirst().orElse(null);
         return new RepositoryOverview(info.getFirst(), latest, branches, openBySeverity(p), trend, flow(repositoryId),
-                rules, jobs, actionPlan(repositoryId, branches, info.getFirst().defaultBranch()));
+                rules, jobs, actionPlan(repositoryId, branches, info.getFirst().defaultBranch()), workflow);
+    }
+
+    static Workflow workflow(String status, Instant checkedAt, String error, String reportJson) {
+        Map<String, Object> report = reportJson == null ? null : Json.read(reportJson);
+        return new Workflow(status, checkedAt, error, report);
     }
 
     static final int ACTION_LIMIT = 8;

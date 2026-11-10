@@ -1,5 +1,7 @@
 package com.saytu.scan;
 
+import com.saytu.scan.git.RemoteRefs;
+
 import com.saytu.core.domain.LanguageProfile;
 import com.saytu.core.domain.ScanStatus;
 import com.saytu.core.domain.ScannerExecutionStatus;
@@ -14,16 +16,22 @@ import java.util.List;
  * @param error     checkout error, {@code null} when the checkout succeeded
  */
 public record JobOutcome(String commitSha, long checkoutBytes, long checkoutFiles, LanguageProfile languages,
-                         List<ScannerOutcome> scanners, String error) {
+                         List<ScannerOutcome> scanners, String error, RemoteRefs refs, String refsError) {
 
     public JobOutcome {
         scanners = scanners == null ? List.of() : List.copyOf(scanners);
         languages = languages == null ? LanguageProfile.empty() : languages;
     }
 
+    /** Without the branch / tag listing (failed jobs, tests). */
+    public JobOutcome(String commitSha, long checkoutBytes, long checkoutFiles, LanguageProfile languages,
+                      List<ScannerOutcome> scanners, String error) {
+        this(commitSha, checkoutBytes, checkoutFiles, languages, scanners, error, null, null);
+    }
+
     /** Same outcome with other scanner results (e.g. scanners not integrated, added by the worker). */
     public JobOutcome withScanners(List<ScannerOutcome> other) {
-        return new JobOutcome(commitSha, checkoutBytes, checkoutFiles, languages, other, error);
+        return new JobOutcome(commitSha, checkoutBytes, checkoutFiles, languages, other, error, refs, refsError);
     }
 
     /**

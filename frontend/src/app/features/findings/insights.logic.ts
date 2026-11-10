@@ -1,5 +1,7 @@
 import { Severity } from '../audits/audits.model';
-import { FindingFilters, FlowPoint, SeverityTypeCounts, TrendPoint } from './insights.model';
+import { FindingFilters, FlowPoint, SeverityTypeCounts, TrendPoint, WorkflowCheckView, WorkflowStatus } from './insights.model';
+
+export type { WorkflowStatus } from './insights.model';
 
 export const SEVERITIES: Severity[] = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'];
 export const TYPES = ['SECURITY', 'SECRET', 'DEPENDENCY', 'QUALITY'] as const;
@@ -187,3 +189,21 @@ export function gainLabel(gain: number): string {
   const rounded = Math.round(gain * 10) / 10;
   return `+${rounded.toLocaleString('fr-FR')}`;
 }
+
+export const WORKFLOW_LABELS: Record<WorkflowStatus, string> = { PASS: 'conforme', WARN: 'à surveiller', FAIL: 'non conforme' };
+
+export const WORKFLOW_CHECK_LABELS: Record<string, string> = {
+  PRODUCTION_BRANCH: 'Branche de production (main ou master)',
+  DEVELOP_BRANCH: 'Branche de travail develop',
+  RELEASE_TAGS: 'Versions taguées',
+  PRODUCTION_ON_LATEST_TAG: 'Production alignée sur le dernier tag',
+};
+
+/** Checks in display order (failures first, then warnings), unknown ids last with their own name. */
+export function sortedWorkflowChecks(checks: WorkflowCheckView[]): WorkflowCheckView[] {
+  const rank: Record<WorkflowStatus, number> = { FAIL: 0, WARN: 1, PASS: 2 };
+  const order = Object.keys(WORKFLOW_CHECK_LABELS);
+  const pos = (id: string) => (order.indexOf(id) < 0 ? order.length : order.indexOf(id));
+  return [...checks].sort((a, b) => rank[a.status] - rank[b.status] || pos(a.id) - pos(b.id));
+}
+

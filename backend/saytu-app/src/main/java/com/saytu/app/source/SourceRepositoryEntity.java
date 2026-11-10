@@ -89,6 +89,10 @@ public class SourceRepositoryEntity {
     @Column(name = "languages", columnDefinition = "jsonb", insertable = false, updatable = false)
     private List<String> languages = new ArrayList<>();
 
+    /** Git flow check (PASS, WARN, FAIL) of the latest audit, written by the scan worker (read-only here). */
+    @Column(name = "workflow_status", length = 8, insertable = false, updatable = false)
+    private String workflowStatus;
+
     @Column(name = "discovered_at", nullable = false, updatable = false)
     private Instant discoveredAt;
 
@@ -255,6 +259,10 @@ public class SourceRepositoryEntity {
 
     public List<String> getLanguages() {
         return languages == null ? List.of() : List.copyOf(languages);
+    }
+
+    public String getWorkflowStatus() {
+        return workflowStatus;
     }
 
     public void setLastActivityAt(Instant lastActivityAt) {

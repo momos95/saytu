@@ -34,6 +34,15 @@ chiffrement) : une installation existante doit être réinitialisée.
 `.env` (ou le regénérer avec `scripts/generate-secrets.sh` après l'avoir supprimé), puis
 `docker compose up -d --build`.
 
+## Organisation des branches (10 novembre 2026)
+
+Contrôle à chaque audit : branche de production `main`/`master` sur le dernier tag de version, branche
+`develop` présente — voir [branch-workflow.md](branch-workflow.md).
+* Vérifié ici : règles `WorkflowCheckTest` (5 tests), lecture des références sur un vrai dépôt Git avec
+  tag annoté (`GitCheckoutTest`), SQL de stockage et compteurs (`verify-scan-sql.sh`), specs de logique.
+* Écrit pour compiler, non exécuté ici : intégration Spring (`ResultWriter`, `InsightService`), carte
+  Angular du détail dépôt, pastilles et indicateur du tableau de bord (specs TestBed).
+
 ## Phase 7 — détail (8 novembre 2026)
 
 ### Livré et vérifié dans l'environnement de développement

@@ -40,7 +40,13 @@ final class InsightSql {
               (SELECT count(*) FROM finding f WHERE f.first_seen_at > now() - interval '7 days') AS new_last_7_days,
               (SELECT count(*) FROM finding f WHERE f.resolved_at > now() - interval '7 days') AS resolved_last_7_days,
               (SELECT count(*) FROM finding f WHERE f.status IN ('ACCEPTED_RISK', 'FALSE_POSITIVE')) AS triaged,
-              (SELECT max(j.finished_at) FROM scan_job j WHERE j.status IN ('SUCCEEDED', 'PARTIAL')) AS last_audit_at""";
+              (SELECT max(j.finished_at) FROM scan_job j WHERE j.status IN ('SUCCEEDED', 'PARTIAL')) AS last_audit_at,
+              (SELECT count(*) FROM source_repository r WHERE r.removed_at IS NULL AND r.workflow_status IS NOT NULL)
+                AS workflow_checked,
+              (SELECT count(*) FROM source_repository r WHERE r.removed_at IS NULL AND r.workflow_status = 'PASS')
+                AS workflow_pass,
+              (SELECT count(*) FROM source_repository r WHERE r.removed_at IS NULL AND r.workflow_status = 'FAIL')
+                AS workflow_fail""";
 
     /** Open findings of repositories still present, per severity and type. */
     static final String OPEN_BY_SEVERITY_TYPE = """
@@ -83,7 +89,7 @@ final class InsightSql {
                        count(*) FILTER (WHERE f.type IN ('SECURITY', 'SECRET', 'DEPENDENCY')) AS security,
                        count(*) AS total
                 FROM finding f WHERE f.status = 'OPEN' GROUP BY f.repository_id)
-            SELECT r.id AS repository_id, r.full_name, r.languages::text AS languages,
+            SELECT r.id AS repository_id, r.full_name, r.languages::text AS languages, r.workflow_status,
                    coalesce(o.critical, 0) AS critical, coalesce(o.high, 0) AS high,
                    coalesce(o.security, 0) AS security_findings, coalesce(o.total, 0) AS open_findings,
                    s.security_score, s.quality_score, s.global_score, s.coverage_percent, s.reliability, s.formula_version,
@@ -100,6 +106,7 @@ final class InsightSql {
     static final String REPOSITORY_INFO = """
             SELECT r.id, r.full_name, r.name, r.web_url, r.default_branch, r.visibility, r.archived, r.removed_at,
                    r.languages::text AS languages, r.languages_updated_at, r.last_activity_at,
+                   r.workflow_status, r.workflow_report::text AS workflow_report, r.workflow_checked_at, r.workflow_error,
                    n.id AS namespace_id, n.full_path AS namespace, c.name AS connection_name, c.provider_type
             FROM source_repository r
             JOIN git_connection c ON c.id = r.connection_id

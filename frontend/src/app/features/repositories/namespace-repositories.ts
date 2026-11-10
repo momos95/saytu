@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, ou
 import { errorMessage } from '../connections/connections.api';
 import { RouterLink } from '@angular/router';
 import { LanguageChips, ScoreBadges } from '../../shared/score-badges';
+import { WorkflowBadge } from '../../shared/workflow-badge';
 import { ScoreView } from '../audits/audits.model';
 import { SourcesApi } from './sources.api';
 import { Namespace, PageView, Repository } from './sources.model';
@@ -9,7 +10,7 @@ import { Namespace, PageView, Repository } from './sources.model';
 /** Paginated, searchable repositories of one namespace, with selection checkboxes (ADMIN). */
 @Component({
   selector: 'saytu-namespace-repositories',
-  imports: [RouterLink, LanguageChips, ScoreBadges],
+  imports: [RouterLink, LanguageChips, ScoreBadges, WorkflowBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="toolbar">
@@ -45,6 +46,7 @@ import { Namespace, PageView, Repository } from './sources.model';
                 @if (r.archived) { <span class="tag warn">archivé (ignoré)</span> }
                 @if (r.scanTarget) { <span class="tag ok">audité</span> }
                 <saytu-language-chips [languages]="r.languages" />
+                <saytu-workflow-badge [status]="r.workflowStatus" />
               </span>
               @if (scores()[r.id]; as sc) {
                 <span class="score-line"><saytu-score-badges [score]="sc" /></span>

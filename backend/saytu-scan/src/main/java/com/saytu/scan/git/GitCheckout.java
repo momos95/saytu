@@ -140,6 +140,58 @@ public final class GitCheckout {
         return new CheckoutResult(dest, sha, size[0], size[1]);
     }
 
+    /**
+     * Lists the remote branches and tags ({@code git ls-remote}), with the same URL policy, credentials
+     * handling and limits as {@link #checkout}; nothing is downloaded but the ref list.
+     *
+     * @param workDir private, empty directory owned by the job
+     */
+    public RemoteRefs listRefs(CheckoutRequest request, Path workDir) throws CheckoutException, InterruptedException {
+        URI source = validate(request);
+        boolean local = "file".equals(source.getScheme());
+        Path home = workDir.resolve("git-home");
+        try {
+            Files.createDirectories(home);
+        } catch (IOException e) {
+            throw new CheckoutException(CheckoutException.Kind.FAILED, "cannot prepare the ref listing directory");
+        }
+        Map<String, String> env = baseEnvironment(home);
+        List<String> secrets = List.of();
+        if (request.credentials() != null && !local) {
+            env.put("GIT_CONFIG_KEY_0", "http." + origin(source) + "/.extraHeader");
+            env.put("GIT_CONFIG_VALUE_0", request.credentials().authorizationHeader());
+            env.put("GIT_CONFIG_COUNT", "1");
+            secrets = request.credentials().sensitiveStrings();
+        } else {
+            env.put("GIT_CONFIG_COUNT", "0");
+        }
+        List<String> argv = new ArrayList<>(gitWithHardening(local, request.verifyTls()));
+        if (local) {
+            argv.add(1, "-c");
+            argv.add(2, "safe.directory=" + Path.of(source).toString());
+            argv.add(3, "-c");
+            argv.add(4, "safe.directory=" + Path.of(source).resolve(".git"));
+        }
+        argv.addAll(List.of("ls-remote", "--heads", "--tags", "--", source.toString()));
+        SandboxResult result = run(argv, env, workDir, secrets);
+        if (!result.completed()) {
+            throw new CheckoutException(CheckoutException.Kind.TIMEOUT, "ls-remote did not complete");
+        }
+        if (result.exitCode() != 0) {
+            throw classify(result.diagnostic(600), request.branch());
+        }
+        try {
+            // the full output (the sandbox keeps only a tail): refs are public names and hashes, no secret
+            Path out = workDir.resolve(com.saytu.scan.sandbox.ProcessSandbox.STDOUT_FILE);
+            if (Files.size(out) > 8L * 1024 * 1024) {
+                throw new CheckoutException(CheckoutException.Kind.TOO_LARGE, "too many refs");
+            }
+            return RemoteRefs.parse(Files.readString(out, java.nio.charset.StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            throw new CheckoutException(CheckoutException.Kind.FAILED, "cannot read the ref list");
+        }
+    }
+
     // ------------------------------------------------------------------ validation
 
     private URI validate(CheckoutRequest request) throws CheckoutException {

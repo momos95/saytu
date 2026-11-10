@@ -32,6 +32,35 @@ export interface PriorityRepository {
   securityFindings: number;
   openFindings: number;
   score: ScoreView | null;
+  workflowStatus: WorkflowStatus | null;
+}
+
+export type WorkflowStatus = 'PASS' | 'WARN' | 'FAIL';
+
+/** Git workflow check of a repository (WorkflowCheck), refreshed by each audit. */
+export interface WorkflowCheckView {
+  id: 'PRODUCTION_BRANCH' | 'DEVELOP_BRANCH' | 'RELEASE_TAGS' | 'PRODUCTION_ON_LATEST_TAG' | string;
+  status: WorkflowStatus;
+  message: string;
+}
+
+export interface WorkflowReport {
+  status: WorkflowStatus;
+  productionBranch: string | null;
+  productionSha: string | null;
+  developSha: string | null;
+  latestTag: string | null;
+  latestTagSha: string | null;
+  releaseTags: number;
+  checks: WorkflowCheckView[];
+}
+
+export interface RepositoryWorkflow {
+  status: WorkflowStatus | null;
+  checkedAt: string | null;
+  /** why the latest audit could not list the branches and tags (the previous report is kept) */
+  error: string | null;
+  report: WorkflowReport | null;
 }
 
 export interface Dashboard {
@@ -43,6 +72,9 @@ export interface Dashboard {
     resolvedLast7Days: number;
     triaged: number;
     lastAuditAt: string | null;
+    workflowChecked: number;
+    workflowPass: number;
+    workflowFail: number;
   };
   openBySeverity: SeverityTypeCounts;
   trend: TrendPoint[];
@@ -76,6 +108,8 @@ export interface RepositoryOverview {
   weeklyFlow: FlowPoint[];
   topRules: { scanner: string; ruleId: string; title: string; severity: Severity; count: number }[];
   actionPlan: ActionPlan;
+  /** null for an API older than the workflow check */
+  workflow: RepositoryWorkflow | null;
   recentJobs: {
     id: string;
     runId: string;

@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { FlowChart, SeverityBreakdown, TrendChart } from '../../shared/charts';
 import { ReportDownload } from '../../shared/report-download';
 import { LanguageChips, ScoreBadges } from '../../shared/score-badges';
+import { WorkflowBadge } from '../../shared/workflow-badge';
 import { RELIABILITY_LABELS, RUN_STATUS_LABELS, formatScore, progress, scoreTone, scopeLabel } from '../audits/audits.logic';
 import { ScanRun } from '../audits/audits.model';
 import { InsightsApi } from '../findings/insights.api';
@@ -11,7 +12,7 @@ import { Dashboard } from '../findings/insights.model';
 
 @Component({
   selector: 'saytu-dashboard-page',
-  imports: [DatePipe, RouterLink, ScoreBadges, LanguageChips, TrendChart, FlowChart, SeverityBreakdown, ReportDownload],
+  imports: [DatePipe, RouterLink, ScoreBadges, LanguageChips, WorkflowBadge, TrendChart, FlowChart, SeverityBreakdown, ReportDownload],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header class="page-header">
@@ -46,6 +47,9 @@ import { Dashboard } from '../findings/insights.model';
             <div class="kpi"><strong>{{ d.counters.resolvedLast7Days }}</strong><span>corrigées (7 jours)</span></div>
             <a class="kpi" routerLink="/findings" [queryParams]="{ status: 'ACCEPTED_RISK,FALSE_POSITIVE' }"><strong>{{ d.counters.triaged }}</strong><span>risques acceptés / faux positifs</span></a>
             <div class="kpi"><strong>{{ d.counters.auditedRepositories }}</strong><span>dépôts audités</span></div>
+            <div class="kpi" data-testid="workflow-kpi" title="main ou master sur le dernier tag de version, branche develop présente">
+              <strong>{{ d.counters.workflowChecked ? d.counters.workflowPass + ' / ' + d.counters.workflowChecked : '—' }}</strong>
+              <span>branches bien organisées@if (d.counters.workflowFail) { · {{ d.counters.workflowFail }} non conforme(s) }</span></div>
             <div class="kpi"><strong class="date">{{ d.counters.lastAuditAt ? (d.counters.lastAuditAt | date: 'dd/MM HH:mm') : '—' }}</strong><span>dernier audit terminé</span></div>
           </div>
         </section>
@@ -66,6 +70,7 @@ import { Dashboard } from '../findings/insights.model';
                     <div class="row">
                       <a [routerLink]="['/repositories', p.repositoryId]" class="name">{{ p.repository }}</a>
                       <saytu-language-chips [languages]="p.languages" />
+                      <saytu-workflow-badge [status]="p.workflowStatus" />
                     </div>
                     <div class="row small">
                       @if (p.critical > 0) { <span class="sev" data-severity="CRITICAL">{{ p.critical }} critique(s)</span> }

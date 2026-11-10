@@ -43,7 +43,7 @@ public final class ProcessSandbox {
 
     private static final Logger LOG = Logger.getLogger(ProcessSandbox.class.getName());
     private static final List<Path> PRLIMIT_LOCATIONS = List.of(Path.of("/usr/bin/prlimit"), Path.of("/bin/prlimit"));
-    static final String STDOUT_FILE = ".saytu-stdout.log";
+    public static final String STDOUT_FILE = ".saytu-stdout.log";
     static final String STDERR_FILE = ".saytu-stderr.log";
     private static final long POLL_NANOS = TimeUnit.MILLISECONDS.toNanos(250);
 

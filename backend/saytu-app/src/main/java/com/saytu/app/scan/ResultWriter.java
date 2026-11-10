@@ -10,6 +10,7 @@ import com.saytu.core.finding.FindingDeduplicator;
 import com.saytu.core.finding.FindingDeduplicator.Merged;
 import com.saytu.core.finding.NormalizedFinding;
 import com.saytu.scan.JobOutcome;
+import com.saytu.core.workflow.WorkflowCheck;
 import com.saytu.scan.ScannerOutcome;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -137,6 +138,7 @@ public class ResultWriter {
             jdbc.update(ScoreSql.RECORD_LANGUAGES, new MapSqlParameterSource()
                     .addValue("labels", Json.write(outcome.languages().labels().stream().map(Language::key).toList()))
                     .addValue("repositoryId", job.repositoryId()));
+            recordWorkflow(job.repositoryId(), outcome);
         }
         if (outcome.error() == null && status != ScanStatus.CANCELLED) {
             Map<ScannerId, ScannerExecutionStatus> executions = new EnumMap<>(ScannerId.class);
@@ -232,5 +234,38 @@ public class ResultWriter {
             return null;
         }
         return s.length() <= max ? s : s.substring(0, max - 1) + "…";
+    }
+
+    private void recordWorkflow(UUID repositoryId, JobOutcome outcome) {
+        if (outcome.refs() != null) {
+            WorkflowCheck.Report r = WorkflowCheck.evaluate(outcome.refs().branches(), outcome.refs().tags());
+            jdbc.update(ScoreSql.RECORD_WORKFLOW, new MapSqlParameterSource().addValue("repositoryId", repositoryId)
+                    .addValue("status", r.status().name()).addValue("report", Json.write(workflowJson(r))));
+        } else if (outcome.refsError() != null) {
+            String error = outcome.refsError();
+            jdbc.update(ScoreSql.RECORD_WORKFLOW_ERROR, new MapSqlParameterSource().addValue("repositoryId", repositoryId)
+                    .addValue("error", error.length() > 600 ? error.substring(0, 600) : error));
+        }
+    }
+
+    static Map<String, Object> workflowJson(WorkflowCheck.Report r) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("status", r.status().name());
+        m.put("productionBranch", r.productionBranch());
+        m.put("productionSha", r.productionSha());
+        m.put("developSha", r.developSha());
+        m.put("latestTag", r.latestTag());
+        m.put("latestTagSha", r.latestTagSha());
+        m.put("releaseTags", r.releaseTags());
+        List<Map<String, Object>> checks = new ArrayList<>();
+        for (WorkflowCheck.Check c : r.checks()) {
+            Map<String, Object> cm = new java.util.LinkedHashMap<>();
+            cm.put("id", c.id());
+            cm.put("status", c.status().name());
+            cm.put("message", c.message());
+            checks.add(cm);
+        }
+        m.put("checks", checks);
+        return m;
     }
 }
