@@ -31,7 +31,9 @@ public class KeycloakAdminClient {
     private final String baseUrl;
     private final String realm;
     private final String clientId;
-    private final String clientSecret;
+    private final String configuredSecret;
+    private final String secretFile;
+    private String clientSecret;
     private String token;
     private Instant tokenExpiry = Instant.EPOCH;
 
@@ -39,16 +41,40 @@ public class KeycloakAdminClient {
                                @Value("${saytu.keycloak-admin.url:http://keycloak:8080}") String baseUrl,
                                @Value("${saytu.keycloak-admin.realm:saytu}") String realm,
                                @Value("${saytu.keycloak-admin.client-id:saytu-admin-api}") String clientId,
-                               @Value("${saytu.keycloak-admin.client-secret:}") String clientSecret) {
+                               @Value("${saytu.keycloak-admin.client-secret:}") String clientSecret,
+                               @Value("${saytu.keycloak-admin.client-secret-file:}") String secretFile) {
         this.json = json;
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.realm = realm;
         this.clientId = clientId;
-        this.clientSecret = clientSecret;
+        this.configuredSecret = clientSecret == null ? "" : clientSecret.strip();
+        this.secretFile = secretFile == null ? "" : secretFile.strip();
     }
 
-    public boolean configured() {
-        return clientSecret != null && !clientSecret.isBlank();
+    /**
+     * True when a client secret is available: from the environment, else from the file written by the
+     * keycloak-config service (read lazily: that service may finish after the API has started).
+     */
+    public synchronized boolean configured() {
+        return !secret().isEmpty();
+    }
+
+    private synchronized String secret() {
+        if (!configuredSecret.isEmpty()) {
+            return configuredSecret;
+        }
+        if (clientSecret == null && !secretFile.isEmpty()) {
+            try {
+                java.nio.file.Path file = java.nio.file.Path.of(secretFile);
+                if (java.nio.file.Files.isReadable(file)) {
+                    String value = java.nio.file.Files.readString(file, StandardCharsets.UTF_8).strip();
+                    clientSecret = value.isEmpty() ? null : value;
+                }
+            } catch (IOException | RuntimeException e) {
+                clientSecret = null;
+            }
+        }
+        return clientSecret == null ? "" : clientSecret;
     }
 
     JsonNode get(String path) {
@@ -128,21 +154,21 @@ public class KeycloakAdminClient {
 
     private synchronized String token() throws IOException, InterruptedException {
         if (!configured()) {
-            throw new ServiceUnavailableException("Gestion des utilisateurs non configurée : lancer scripts/keycloak-admin-client "
-                    + "(crée le client saytu-admin-api et renseigne SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET), puis redémarrer l'API");
+            throw new ServiceUnavailableException("Gestion des utilisateurs pas encore prête : voir « docker compose logs keycloak-config »");
         }
         if (token != null && Instant.now().isBefore(tokenExpiry)) {
             return token;
         }
         String form = "grant_type=client_credentials&client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8)
-                + "&client_secret=" + URLEncoder.encode(clientSecret, StandardCharsets.UTF_8);
+                + "&client_secret=" + URLEncoder.encode(secret(), StandardCharsets.UTF_8);
         HttpResponse<String> r = http.send(HttpRequest.newBuilder(URI.create(baseUrl + "/realms/" + realm
                         + "/protocol/openid-connect/token")).timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(form)).build(), HttpResponse.BodyHandlers.ofString());
         if (r.statusCode() != 200) {
+            clientSecret = null; // re-read the file next time (keycloak-config may have rotated it)
             throw new ServiceUnavailableException("Authentification du client saytu-admin-api refusée (HTTP " + r.statusCode()
-                    + ") : vérifier SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET");
+                    + ") : relancer « docker compose up -d keycloak-config »");
         }
         JsonNode n = json.readTree(r.body());
         token = n.path("access_token").asText();

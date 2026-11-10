@@ -60,8 +60,8 @@ chiffrement) : une installation existante doit être réinitialisée.
 
 ### Limites connues de la phase 7
 * « Ignorer les branches inchangées » d'une planification n'est pas implémenté.
-* Gestion des utilisateurs : nécessite d'exécuter une fois le script `keycloak-admin-client` ; pas
-  d'envoi d'e-mail (le mot de passe temporaire est affiché à l'administrateur).
+* Gestion des utilisateurs : activée automatiquement par le service `keycloak-config` (10 novembre) ;
+  pas d'envoi d'e-mail (le mot de passe temporaire est affiché à l'administrateur).
 * IA locale : le modèle ne voit pas le code autour de la ligne (non conservé) ; qualité variable selon
   le modèle ; génération synchrone (jusqu'au délai réglé).
 * Les envois de webhooks n'utilisent pas `HTTPS_PROXY`, seulement le proxy Java (`SAYTU_JAVA_PROXY_OPTS`).

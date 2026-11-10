@@ -80,18 +80,17 @@ La page s'appuie sur l'API d'administration de Keycloak, via un client confident
 `saytu-admin-api` dont le compte de service n'a que `view-users`, `query-users` et `manage-users` **du
 royaume saytu** (aucun droit sur le royaume master ni sur la configuration).
 
-Mise en place, une fois, pile démarrée :
+**Activée par défaut** : à chaque `docker compose up`, le service ponctuel `keycloak-config` (image
+Keycloak, s'arrête une fois sa tâche faite) se connecte avec le compte d'administration initial
+(`KC_BOOTSTRAP_ADMIN_*` du `.env`), crée ou met à jour le client et dépose son secret dans le volume
+`keycloak-admin-secret`, lisible par l'API seule. Rien à saisir, y compris sur une installation existante.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\keycloak-admin-client.ps1     # Windows
-```
-```bash
-bash scripts/keycloak-admin-client.sh                                          # Linux / macOS
-```
-puis `docker compose up -d api`. Le script utilise le compte d'administration initial de Keycloak
-(`KC_BOOTSTRAP_ADMIN_*` du `.env`), crée ou met à jour le client et écrit
-`SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET` dans `.env`. Sans lui, la page l'indique et la console Keycloak reste
-utilisable.
+Vérifier : `docker compose logs keycloak-config` doit finir par « user management enabled ». En cas
+d'échec (compte d'administration initial supprimé ou mot de passe changé dans Keycloak), la page
+l'indique ; corriger `KC_BOOTSTRAP_ADMIN_PASSWORD` puis `docker compose up -d keycloak-config`, ou fixer
+soi-même le secret dans `.env` (`SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET`, prioritaire) avec les scripts
+`scripts/keycloak-admin-client.ps1` / `.sh`. Le conteneur `keycloak-config` apparaît « Exited (0) » dans
+`docker compose ps -a` : c'est normal.
 
 * Un rôle SAYTU par utilisateur : VIEWER (lecture), AUDITOR (audits, triage, IA), ADMIN (tout).
 * Création : SAYTU génère un **mot de passe temporaire**, affiché une seule fois, à changer à la première

@@ -112,6 +112,30 @@ services:
       resources:
         limits: { cpus: "2", memory: 1536m }
 
+  # One-shot, at every "up": creates the Keycloak client used by the user management page
+  # (saytu realm only) and gives its secret to the API through a volume. See docs/automation.md.
+  keycloak-config:
+    image: quay.io/keycloak/keycloak:26.4
+    restart: "no"
+    user: "0"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN]
+    entrypoint: ["/bin/bash", "/opt/saytu/keycloak-admin-client-init.sh"]
+    environment:
+      KEYCLOAK_URL: http://keycloak:8080
+      KC_ADMIN_USER: ${KC_BOOTSTRAP_ADMIN_USERNAME:-kcadmin}
+      KC_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?set KC_BOOTSTRAP_ADMIN_PASSWORD in .env}
+      SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET: ${SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET:-}
+    volumes:
+      - ./infra/keycloak/keycloak-admin-client-init.sh:/opt/saytu/keycloak-admin-client-init.sh:ro
+      - keycloak-admin-secret:/secrets
+    networks: [data]
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
   api:
     <<: *hardening
     build:
@@ -135,10 +159,11 @@ services:
       SAYTU_CORS_ALLOWED_ORIGINS: ${SAYTU_PUBLIC_URL:-http://localhost:8080}
       SAYTU_EXPOSE_API_DOCS: ${SAYTU_EXPOSE_API_DOCS:-false}
       SAYTU_PUBLIC_URL: ${SAYTU_PUBLIC_URL:-http://localhost:8080}
-      # user management page: confidential client of the saytu realm (scripts/keycloak-admin-client.*)
+      # user management page: confidential client of the saytu realm, created by "keycloak-config"
       SAYTU_KEYCLOAK_ADMIN_URL: http://keycloak:8080
       SAYTU_KEYCLOAK_ADMIN_CLIENT_ID: saytu-admin-api
       SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET: ${SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET:-}
+      SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET_FILE: /run/saytu-secrets/keycloak-admin-client-secret
       SAYTU_MASTER_KEY: ${SAYTU_MASTER_KEY:?set SAYTU_MASTER_KEY in .env}
       SAYTU_PREVIOUS_MASTER_KEYS: ${SAYTU_PREVIOUS_MASTER_KEYS:-}
       SAYTU_GIT_ALLOW_PLAIN_HTTP: ${SAYTU_GIT_ALLOW_PLAIN_HTTP:-false}
@@ -153,6 +178,8 @@ services:
       - ${SAYTU_LOCAL_REPOS_HOST_DIR:-./data/local-repos}:/srv/git:ro
       # Internal CA certificates (PEM), optional extra bundle for Git platforms, see SAYTU_GIT_CA_BUNDLE
       - ${SAYTU_CA_DIR:-./data/ca}:/etc/saytu/ca:ro
+      # secret of the Keycloak client "saytu-admin-api", written by keycloak-config
+      - keycloak-admin-secret:/run/saytu-secrets:ro
     read_only: true
     tmpfs:
       - /tmp:size=256m,mode=1777
@@ -275,6 +302,8 @@ networks:
 
 volumes:
   pgdata: {}
+  # secret of the Keycloak client used by the user management page (keycloak-config -> api)
+  keycloak-admin-secret: {}
   ollama: {}
   # Trivy vulnerability database (refreshed by the worker, or copied by hand when offline)
   trivy-db: {}

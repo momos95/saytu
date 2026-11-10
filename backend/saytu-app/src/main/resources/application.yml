@@ -43,6 +43,8 @@ saytu:
     realm: saytu
     client-id: ${SAYTU_KEYCLOAK_ADMIN_CLIENT_ID:saytu-admin-api}
     client-secret: ${SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET:}
+    # written by the keycloak-config service when the secret is not set in .env
+    client-secret-file: ${SAYTU_KEYCLOAK_ADMIN_CLIENT_SECRET_FILE:}
   version: '@project.version@'
   security:
     web-client-id: ${SAYTU_OIDC_WEB_CLIENT_ID:saytu-web}

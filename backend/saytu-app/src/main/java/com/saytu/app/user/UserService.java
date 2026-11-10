@@ -58,8 +58,8 @@ public class UserService {
     public Status status() {
         return keycloak.configured()
                 ? new Status(true, "Utilisateurs gérés dans Keycloak (royaume saytu) via le client saytu-admin-api")
-                : new Status(false, "Non configuré : lancer scripts/keycloak-admin-client.ps1 (Windows) ou .sh, puis "
-                + "« docker compose up -d api ». En attendant, la console Keycloak reste utilisable.");
+                : new Status(false, "Pas encore prête : le service keycloak-config crée l'accès à Keycloak au démarrage. "
+                + "Voir « docker compose logs keycloak-config » ; en attendant, la console Keycloak reste utilisable.");
     }
 
     public List<UserView> list() {
