@@ -121,7 +121,8 @@ services:
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
-    cap_add: [CHOWN]
+    # CHOWN: hand the secret file to the API user; DAC_READ_SEARCH: read it back on the next run (owned by 10001, mode 600)
+    cap_add: [CHOWN, DAC_READ_SEARCH]
     entrypoint: ["/bin/bash", "/opt/saytu/keycloak-admin-client-init.sh"]
     environment:
       KEYCLOAK_URL: http://keycloak:8080
