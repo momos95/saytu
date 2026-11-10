@@ -1,7 +1,7 @@
 # Notes de sécurité
 
-Document vivant : chaque phase y ajoute ses mesures et ses risques résiduels. Le guide
-d'exploitation complet est prévu en phase 8.
+Document vivant : chaque phase y ajoute ses mesures et ses risques résiduels. Exploitation
+(sauvegarde, mise à jour, installation isolée) : [operations.md](operations.md).
 
 ## Connexions Git (phase 2)
 
@@ -56,3 +56,35 @@ certificat PEM dans `./data/ca/` et renseigner `SAYTU_GIT_CA_BUNDLE_IN_CONTAINER
 Voir [ADR-0006](adr/0006-oidc-spa.md) : code + PKCE, jetons en mémoire, validation de l'ID token,
 jeton envoyé uniquement à `/api/v1`, pas de redirection ouverte. L'API reste la seule autorité :
 rôles vérifiés côté serveur (`@PreAuthorize`), l'interface masque seulement les actions interdites.
+
+## Isolation des scanners (phase 8)
+
+Le code analysé n'est **jamais exécuté** (aucun script de build, clone sans hooks ni sous-modules). Le risque
+restant est une faille dans un outil d'analyse déclenchée par un fichier piégé du dépôt. Pour en limiter les
+conséquences, le worker démarre en `root` **avec un jeu réduit de capacités** (`SETUID`, `SETGID`, `CHOWN`,
+`DAC_OVERRIDE`, `FOWNER`, `KILL`, sous-ensemble des capacités Docker par défaut ; `no-new-privileges`, système de
+fichiers en lecture seule) et lance les outils de chaque audit sous un **compte dédié** :
+
+| Mesure | Effet |
+|---|---|
+| un uid/gid par audit en cours (20000, 20001…), via `setpriv` : aucun groupe supplémentaire, aucune capacité, `no_new_privs` | un scanner ne peut lire ni la mémoire ni l'environnement du worker (`/proc/<worker>/environ` contient le mot de passe de la base et `SAYTU_MASTER_KEY`), ni le jeton Git, ni les fichiers d'un autre audit |
+| répertoire du job `0750 root:<gid du job>`, sources appartenant à `root`, répertoire de travail de chaque outil `0700` à l'uid du job, racine des jobs `0711` | les sources ne peuvent pas être modifiées pour tromper l'outil suivant ; les autres jobs ne sont pas listables |
+| après chaque outil, tous les processus de l'uid du job sont tués | aucun processus détaché (double fork, `setsid`) ne survit à l'analyse |
+| règle `iptables -m owner` posée par `worker-entrypoint.sh`, qui démarre ensuite le worker **sans** `NET_ADMIN` | les scanners n'ont aucun accès réseau (ni Internet, ni la base, ni Keycloak, ni l'actuator local) ; la règle ne peut plus être retirée |
+| limites `prlimit` (CPU, taille de fichiers, descripteurs, pas de core dump), mémoire et délai surveillés (phase 4) | inchangé |
+
+Restent exécutés par le worker lui-même, car ils ont besoin du réseau ou du jeton : `git clone`, `git ls-remote`
+et le téléchargement de la base Trivy (données publiques). La base Trivy est rendue lisible (`a+rX`) par les
+comptes de scanners, modifiable par le worker seul.
+
+L'état réel est affiché dans **Scanners & branches** (« Isolation des scanners ») et dans le journal du
+worker (`scanner isolation: dedicated account yes, network blocked`) :
+
+* **compte dédié « non »** : le worker ne tourne pas en root (image lancée sans le `docker-compose.yml`
+  fourni) ; `SAYTU_SCAN_ISOLATION_MODE=REQUIRED` empêche alors le worker de démarrer ;
+* **réseau « ouvert »** : le noyau a refusé la règle de pare-feu (module `owner` / `nf_tables` absent, ou
+  hôte qui interdit `NET_ADMIN`) ; la raison est affichée. Les scanners restent sous compte dédié.
+
+Risques résiduels : les scanners voient le système de fichiers de l'image en lecture (binaires, règles —
+aucun secret) ; pas d'espace de noms séparé (le profil seccomp par défaut de Docker interdit `unshare` sans
+`CAP_SYS_ADMIN`, que SAYTU ne demande pas) ; une faille du noyau reste hors de portée de ces mesures.

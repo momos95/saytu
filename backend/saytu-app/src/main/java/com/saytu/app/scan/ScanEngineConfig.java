@@ -18,7 +18,10 @@ import com.saytu.scan.adapter.SqlfluffAdapter;
 import com.saytu.scan.adapter.TrivyAdapter;
 import com.saytu.scan.git.GitCheckout;
 import com.saytu.scan.sandbox.ProcessSandbox;
+import com.saytu.scan.sandbox.ScannerIsolation;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -71,15 +74,33 @@ public class ScanEngineConfig {
                 proxy));
     }
 
+    /**
+     * Scanners of each job under a dedicated account (worker running as root with reduced capabilities);
+     * mode AUTO falls back to the worker account with a warning, REQUIRED refuses to start.
+     */
     @Bean
-    ScanJobRunner scanJobRunner(ProcessSandbox sandbox, GitCheckout checkout, ScanProperties properties) {
+    ScannerIsolation scannerIsolation(ScanProperties properties,
+                                      @Value("${saytu.scan.isolation.mode:AUTO}") String mode,
+                                      @Value("${saytu.scan.isolation.base-id:20000}") int baseId) {
+        ScannerIsolation isolation = ScannerIsolation.detect(ScannerIsolation.Mode.valueOf(mode.strip().toUpperCase(java.util.Locale.ROOT)),
+                baseId, Math.max(1, properties.worker().maxParallelJobs()));
+        if (isolation.enabled()) {
+            // the Trivy database is public data: readable by the scanner accounts, writable by the worker only
+            ScannerIsolation.makeReadable(properties.tools().trivyCacheDir());
+        }
+        return isolation;
+    }
+
+    @Bean
+    ScanJobRunner scanJobRunner(ProcessSandbox sandbox, GitCheckout checkout, ScanProperties properties,
+                                ScannerIsolation isolation) {
         Path workDir = properties.worker().workDir();
         try {
             Files.createDirectories(workDir);
         } catch (IOException e) {
             throw new UncheckedIOException("cannot create the scan work directory " + workDir, e);
         }
-        return new ScanJobRunner(sandbox, checkout, workDir);
+        return new ScanJobRunner(sandbox, checkout, workDir, isolation);
     }
 
     /** Integrated scanners (OWASP Dependency-Check is not integrated: see docs/licenses.md). */
@@ -121,6 +142,22 @@ public class ScanEngineConfig {
     @Bean
     TrivyDbUpdater trivyDbUpdater(ProcessSandbox sandbox, ScanProperties properties, Clock clock) {
         return new TrivyDbUpdater(sandbox, properties.tools(), properties.worker().workDir(), clock);
+    }
+
+    /** Reports the scanner isolation of this worker (shown on the "Scanners & branches" page). */
+    @Bean
+    ApplicationRunner scannerIsolationReport(WorkerStatusService status, ScannerIsolation isolation, ScanProperties properties) {
+        return args -> {
+            String id = properties.worker().id() == null || properties.worker().id().isBlank() ? "worker" : properties.worker().id();
+            org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(ScanEngineConfig.class);
+            log.info("scanner isolation: dedicated account {}, network {}",
+                    isolation.enabled() ? "yes" : "no (" + isolation.disabledReason().orElse("") + ")", isolation.networkStatus());
+            try {
+                status.publish(id, isolation);
+            } catch (RuntimeException e) {
+                log.warn("could not record the scanner isolation status: {}", e.getMessage());
+            }
+        };
     }
 
     @Bean(initMethod = "start", destroyMethod = "stop")

@@ -48,6 +48,18 @@ export interface Repository {
   workflowStatus: 'PASS' | 'WARN' | 'FAIL' | null;
 }
 
+/** How the worker confines the scanners (reported at its start). */
+export interface WorkerIsolation {
+  /** each job's scanners run under a dedicated, unprivileged account */
+  separateUser: boolean;
+  /** "blocked", or "open: reason" */
+  network: string;
+  networkBlocked: boolean;
+  detail: string | null;
+  workerId: string | null;
+  reportedAt: string | null;
+}
+
 export interface PageView<T> {
   items: T[];
   page: number;

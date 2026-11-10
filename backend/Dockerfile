@@ -149,13 +149,15 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=5 \
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 
 # ---------- worker runtime ----------
-# glibc base: the Opengrep binary is built for manylinux. util-linux (prlimit) is part of the base.
-# Ubuntu packages: git, PHP CLI (PHP_CodeSniffer), Cppcheck 2.13, Python 3.12 (SQLFluff virtual environment).
+# glibc base: the Opengrep binary is built for manylinux. util-linux (prlimit, setpriv) is part of the base.
+# Ubuntu packages: git, PHP CLI (PHP_CodeSniffer), Cppcheck 2.13, Python 3.12 (SQLFluff virtual environment),
+# iptables (blocks the network of the scanner accounts, see worker-entrypoint.sh).
 FROM eclipse-temurin:21-jre-noble AS worker
 LABEL org.opencontainers.image.title="saytu-worker" \
       org.opencontainers.image.licenses="Apache-2.0" \
       org.opencontainers.image.source="https://github.com/momos95/saytu"
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates php-cli php-xml cppcheck python3 \
+      iptables \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 10001 saytu && useradd -u 10001 -g saytu -d /var/lib/saytu -M -s /usr/sbin/nologin saytu
 # Extra CA certificates: JVM (Git platform APIs) and system store (git clone, Trivy database download)
@@ -174,9 +176,14 @@ RUN mkdir -p /var/lib/saytu/work /var/lib/saytu/trivy /etc/saytu/rules/opengrep 
     && chown -R saytu:saytu /var/lib/saytu && chmod 0700 /var/lib/saytu/work
 WORKDIR /app
 COPY --from=build --chown=saytu:saytu /src/saytu-app/target/saytu.jar app.jar
+COPY worker-entrypoint.sh /app/worker-entrypoint.sh
+# CRLF from a Windows checkout would break the shebang
+RUN sed -i 's/\r$//' /app/worker-entrypoint.sh && chmod 0755 /app/worker-entrypoint.sh
+# docker-compose runs the worker as root with a reduced capability set so that each job's scanners get their
+# own account (ScannerIsolation); without it the image runs as the unprivileged "saytu" user.
 USER 10001:10001
 ENV SAYTU_WORKER_ENABLED=true \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=25 -XX:+ExitOnOutOfMemoryError -Djava.security.egd=file:/dev/./urandom"
 HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=5 \
   CMD bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf "GET /actuator/health/readiness HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3 && grep -q "\"UP\"" <&3'
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["/app/worker-entrypoint.sh"]

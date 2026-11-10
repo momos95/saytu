@@ -83,7 +83,17 @@ public final class ProcessSandbox {
 
     /** Runs a scanner command. The environment rules of {@link CommandSpec} apply (no credential). */
     public SandboxResult run(CommandSpec spec, ResourceLimits limits) throws IOException, InterruptedException {
-        return execute(spec.argv(), spec.environment(), spec.workingDir(), limits, List.of());
+        return execute(List.of(), spec.argv(), spec.environment(), spec.workingDir(), limits, List.of());
+    }
+
+    /**
+     * Runs a scanner command under the job's dedicated identity (see {@link ScannerIsolation}); same as
+     * {@link #run(CommandSpec, ResourceLimits)} when {@code identity} is null.
+     */
+    public SandboxResult run(CommandSpec spec, ResourceLimits limits, ScannerIsolation isolation,
+                             ScannerIsolation.Identity identity) throws IOException, InterruptedException {
+        List<String> drop = isolation == null ? List.of() : isolation.prefix(identity);
+        return execute(drop, spec.argv(), spec.environment(), spec.workingDir(), limits, List.of());
     }
 
     /**
@@ -96,10 +106,10 @@ public final class ProcessSandbox {
         if (argv.isEmpty() || !argv.getFirst().startsWith("/")) {
             throw new IllegalArgumentException("argv[0] must be an absolute executable path");
         }
-        return execute(List.copyOf(argv), Map.copyOf(environment), workingDir, limits, secretsToMask);
+        return execute(List.of(), List.copyOf(argv), Map.copyOf(environment), workingDir, limits, secretsToMask);
     }
 
-    private SandboxResult execute(List<String> argv, Map<String, String> environment, Path workingDir,
+    private SandboxResult execute(List<String> drop, List<String> argv, Map<String, String> environment, Path workingDir,
                                   ResourceLimits limits, Collection<String> secrets)
             throws IOException, InterruptedException {
         Objects.requireNonNull(limits, "limits");
@@ -107,7 +117,9 @@ public final class ProcessSandbox {
         Path stdout = workingDir.resolve(STDOUT_FILE);
         Path stderr = workingDir.resolve(STDERR_FILE);
 
-        ProcessBuilder builder = new ProcessBuilder(withLimits(argv, limits))
+        List<String> command = new ArrayList<>(drop);
+        command.addAll(withLimits(argv, limits));
+        ProcessBuilder builder = new ProcessBuilder(command)
                 .directory(workingDir.toFile())
                 .redirectInput(ProcessBuilder.Redirect.from(new File("/dev/null")))
                 .redirectOutput(stdout.toFile())

@@ -11,6 +11,7 @@ import {
   SETTING_LABELS,
   ScanTargetSummary,
   Scanner,
+  WorkerIsolation,
   languageLabel,
 } from '../repositories/sources.model';
 import { BranchPicker } from './branch-picker';
@@ -39,6 +40,19 @@ import { BranchPicker } from './branch-picker';
 
     <h2>Scanners</h2>
     <p class="muted intro">Un scanner désactivé n’est jamais considéré comme « aucune vulnérabilité » : il réduit la couverture affichée avec les scores.</p>
+    @if (isolation(); as iso) {
+      <section class="card isolation" data-testid="isolation" [class.weak]="!iso.separateUser || !iso.networkBlocked">
+        <strong>Isolation des scanners</strong>
+        <ul>
+          <li>{{ iso.separateUser ? '✓ compte système dédié par audit, sans privilège' : '✗ les scanners partagent le compte du worker' }}
+            @if (iso.detail) { <span class="muted small">({{ iso.detail }})</span> }</li>
+          <li>{{ iso.networkBlocked ? '✓ accès réseau coupé pendant l’analyse' : '✗ accès réseau ouvert' }}
+            @if (!iso.networkBlocked) { <span class="muted small">({{ networkReason(iso.network) }})</span> }</li>
+        </ul>
+        <p class="muted small">Le code analysé n’est jamais exécuté ; ces protections limitent les conséquences d’une faille dans un
+          outil d’analyse. Voir docs/security.md.</p>
+      </section>
+    }
     <ul class="scanners">
       @for (s of scanners(); track s.id) {
         <li class="card" data-testid="scanner">
@@ -133,6 +147,11 @@ import { BranchPicker } from './branch-picker';
     h1 { margin: 0 0 16px; font-size: 1.5rem; }
     h2 { font-size: 1.15rem; margin: 24px 0 6px; }
     .intro { margin: 0 0 10px; font-size: .9rem; }
+    .isolation { margin-bottom: 12px; border-left: 4px solid var(--saytu-accent); }
+    .isolation.weak { border-left-color: var(--saytu-medium); }
+    .isolation ul { margin: 6px 0; padding-left: 18px; }
+    .isolation li { overflow-wrap: anywhere; }
+    .small { font-size: .8rem; }
     .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
     .summary div { display: flex; flex-direction: column; }
     .summary strong { font-size: 1.4rem; }
@@ -166,6 +185,7 @@ export class ScanSettingsPage implements OnInit {
   readonly modes: BranchMode[] = ['DEFAULT', 'PRESET', 'CUSTOM'];
   readonly scanners = signal<Scanner[]>([]);
   readonly summary = signal<ScanTargetSummary | null>(null);
+  readonly isolation = signal<WorkerIsolation | null>(null);
   readonly targets = signal<PageView<Repository> | null>(null);
   readonly checked = signal<Set<string>>(new Set());
   readonly editing = signal<string | null>(null);
@@ -177,8 +197,13 @@ export class ScanSettingsPage implements OnInit {
 
   ngOnInit(): void {
     this.api.scanners().subscribe({ next: s => this.scanners.set(s), error: e => this.error.set(errorMessage(e)) });
+    this.api.workerIsolation().subscribe({ next: i => this.isolation.set(i), error: () => this.isolation.set(null) });
     this.loadSummary();
     this.loadTargets(0);
+  }
+
+  networkReason(network: string): string {
+    return network.startsWith('open: ') ? network.slice(6) : network;
   }
 
   label(id: string): string {

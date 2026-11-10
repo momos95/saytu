@@ -32,3 +32,9 @@ data/local-repos/*
 data/ca/*
 data/rules/*
 !data/**/.gitkeep
+
+# operations output (scripts/backup.sh, scripts/sbom.sh, scripts/offline-bundle.sh)
+backups/
+sbom/
+saytu-offline-*.tar
+saytu-offline-*.tar.sha256

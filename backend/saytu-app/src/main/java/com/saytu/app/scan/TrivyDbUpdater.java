@@ -79,6 +79,8 @@ public class TrivyDbUpdater {
             SandboxResult r = sandbox.run(new CommandSpec(argv, env, dir, dir.resolve("unused")), LIMITS);
             if (r.completed() && r.exitCode() == 0) {
                 log.info("Trivy vulnerability database updated");
+                // read by the scanner accounts (ScannerIsolation); Trivy creates its directories private
+                com.saytu.scan.sandbox.ScannerIsolation.makeReadable(tools.trivyCacheDir());
             } else {
                 log.warn("Trivy vulnerability database update failed (dependency checks stay degraded): {}",
                         r.timedOut() ? "timeout" : r.diagnostic(500));

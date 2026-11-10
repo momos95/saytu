@@ -24,6 +24,8 @@ describe('ScanSettingsPage', () => {
     { id: 'phpcs', enabled: true, timeoutSeconds: 900, cpuSeconds: 900, memoryMb: 1024, optional: false,
       producedTypes: ['QUALITY'], languages: ['php'], settings: { standard: 'PSR12' }, settingKeys: ['standard'],
       updatedBy: null, updatedAt: '2026-11-04T10:00:00Z' }]);
+    http.expectOne('/api/v1/system/worker').flush({ separateUser: true, network: 'open: firewall rule refused',
+      networkBlocked: false, detail: null, workerId: 'worker-1', reportedAt: '2026-11-10T21:00:00Z' });
     http.expectOne('/api/v1/scan-targets/summary').flush({ selectedNamespaces: 1, repositories: 1, defaultBranchMode: 1,
       presetBranchMode: 0, customBranchMode: 0 });
     http.expectOne(r => r.url === '/api/v1/repositories/targets').flush({ page: 0, size: 50, totalElements: 1, totalPages: 1,
@@ -43,6 +45,11 @@ describe('ScanSettingsPage', () => {
     expect(el.querySelector('[data-testid="summary"]')?.textContent).toContain('dépôts audités');
     expect(el.querySelector('[data-testid="scanner"]')?.textContent).toContain('Trivy');
     expect(el.querySelector('[data-testid="target"]')?.textContent).toContain('→ main');
+    const iso = el.querySelector('[data-testid="isolation"]')!;
+    expect(iso.textContent).toContain('compte système dédié');
+    expect(iso.textContent).toContain('accès réseau ouvert');
+    expect(iso.textContent).toContain('firewall rule refused');
+    expect(iso.classList.contains('weak')).toBeTrue();
   });
 
   it('saves scanner changes', async () => {

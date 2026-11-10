@@ -9,7 +9,7 @@
 |---|---|
 | 100 % on-premise, aucun SaaS | Aucune dépendance réseau sortante en fonctionnement normal ; bases de vulnérabilités importables hors ligne ; IA locale (Ollama) uniquement. |
 | Aucun code/token vers l'extérieur | Scanners exécutés en mode *offline*, télémétrie coupée, analyseurs « en ligne » de Dependency-Check désactivés, egress filtrable. |
-| Code non fiable analysé | Aucun script de build exécuté, clone sans hooks ni sous-modules, scanners en sous-processus bornés (temps, CPU, mémoire, disque), environnement vide. |
+| Code non fiable analysé | Aucun script de build exécuté, clone sans hooks ni sous-modules, scanners en sous-processus bornés (temps, CPU, mémoire, disque), environnement vide, compte système dédié par audit et réseau coupé (phase 8, [security.md](security.md)). |
 | Multi-organisations / multi-dépôts | Modèle `connexion → namespace → dépôt → branche`, file d'exécution persistante, scores agrégés à chaque niveau. |
 | Score honnête | Un scanner non exécuté réduit la **couverture** ; il n'améliore jamais le score. Score masqué si la couverture est insuffisante. |
 | Simplicité d'exploitation | Monolithe modulaire, PostgreSQL comme seul état (y compris la file), Docker Compose. |

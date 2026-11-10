@@ -11,8 +11,7 @@ import {
   RemoteBranches,
   Repository,
   ScanTargetSummary,
-  Scanner,
-} from './sources.model';
+  Scanner, WorkerIsolation } from './sources.model';
 
 @Injectable({ providedIn: 'root' })
 export class SourcesApi {
@@ -87,6 +86,11 @@ export class SourcesApi {
   /** Latest scores: global, per namespace and per repository (weakest audited branch). */
   scores(): Observable<ScoreSummary> {
     return this.http.get<ScoreSummary>(this.url('/scores'));
+  }
+
+  /** null before the worker's first start (HTTP 204) */
+  workerIsolation(): Observable<WorkerIsolation | null> {
+    return this.http.get<WorkerIsolation | null>(this.url('/system/worker'));
   }
 
   scanners(): Observable<Scanner[]> {

@@ -91,6 +91,39 @@ class ScanJobRunnerTest {
         return new ScanJobRunner(sandbox, checkout, workRoot);
     }
 
+    @Test
+    void fullJobWithScannersUnderADedicatedAccount() throws Exception {
+        assumeTrue(com.saytu.scan.sandbox.ScannerIsolation.detect(com.saytu.scan.sandbox.ScannerIsolation.Mode.AUTO, 22000, 1)
+                .enabled(), "needs root, like the worker container");
+        Files.setPosixFilePermissions(tmp, java.nio.file.attribute.PosixFilePermissions.fromString("rwx--x--x"));
+        Path repo = vulnerableRepo();
+        ProcessSandbox sandbox = ProcessSandbox.detect(false);
+        GitCheckout checkout = new GitCheckout(sandbox, new GitCheckout.Settings(TestSupport.GIT, LIMITS,
+                100L * 1024 * 1024, 100_000, null, false, reposRoot, Map.of()));
+        com.saytu.scan.sandbox.ScannerIsolation isolation = com.saytu.scan.sandbox.ScannerIsolation.detect(
+                com.saytu.scan.sandbox.ScannerIsolation.Mode.REQUIRED, 22000, 1);
+        ScanJobRunner runner = new ScanJobRunner(sandbox, checkout, workRoot, isolation);
+
+        JobOutcome outcome = runner.run(UUID.randomUUID(), new CheckoutRequest(repo.toUri(), "main", null, true),
+                plans(LIMITS), () -> false);
+
+        assertNull(outcome.error());
+        Map<ScannerId, ScannerOutcome> byScanner = new HashMap<>();
+        outcome.scanners().forEach(s -> byScanner.put(s.scanner(), s));
+        ScannerOutcome opengrep = byScanner.get(ScannerId.OPENGREP);
+        assertEquals(ScannerExecutionStatus.SUCCEEDED, opengrep.status(), String.valueOf(opengrep.errorMessage()));
+        assertTrue(opengrep.findings().stream().anyMatch(f -> f.ruleId().equals("saytu.java.sql-injection-concatenation")));
+        ScannerOutcome gitleaks = byScanner.get(ScannerId.GITLEAKS);
+        assertEquals(ScannerExecutionStatus.SUCCEEDED, gitleaks.status(), String.valueOf(gitleaks.errorMessage()));
+        assertFalse(gitleaks.findings().isEmpty());
+        ScannerOutcome trivy = byScanner.get(ScannerId.TRIVY);
+        assertTrue(trivy.findings().stream().anyMatch(f -> f.ruleId().equals("DS-0001")), String.valueOf(trivy.errorMessage()));
+        assertNotNull(outcome.refs(), "Git refs listed by the worker itself: " + outcome.refsError());
+        try (Stream<Path> left = Files.list(workRoot)) {
+            assertEquals(0, left.count(), "job directory deleted, including files written by the scanner account");
+        }
+    }
+
     private List<ScannerPlan> plans(ResourceLimits limits) {
         Path root = TestSupport.repositoryRoot();
         return List.of(

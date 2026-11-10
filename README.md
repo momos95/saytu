@@ -23,7 +23,7 @@ Aucun abonnement, aucun service SaaS : le code analysé ne quitte jamais votre i
 | [docs/branch-workflow.md](docs/branch-workflow.md) | contrôle de l'organisation des branches (main/master sur le dernier tag, develop) |
 | [docs/reports.md](docs/reports.md) | rapports PDF / HTML / JSON / SARIF, tableau de bord, triage |
 | [docs/scoring.md](docs/scoring.md) | formule des scores, couverture, fiabilité, outils par langage |
-| [docs/operations.md](docs/operations.md) | exploitation des audits : base Trivy (en ligne / hors ligne), packs de règles, reprises |
+| [docs/operations.md](docs/operations.md) | exploitation : contrôle après installation, sauvegarde / restauration, mise à jour, installation isolée, SBOM, audits |
 | [docs/install-windows.md](docs/install-windows.md) | installation sur Windows avec WSL 2 et Docker Engine |
 | [docs/roadmap.md](docs/roadmap.md) | phases et état d'avancement |
 
@@ -43,6 +43,7 @@ proxy d'inspection HTTPS).
 scripts/generate-secrets.sh          # crée .env (mode 600) avec des secrets aléatoires
 docker compose up -d --build
 docker compose ps                    # postgres, keycloak, api, worker, web doivent être "healthy"
+scripts/smoke-test.sh                # contrôle de l'installation (lecture seule)
 ```
 
 * Interface : <http://localhost:8080> — connexion via Keycloak, puis **Connexions Git** pour enregistrer

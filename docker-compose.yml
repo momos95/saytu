@@ -230,6 +230,8 @@ services:
       SAYTU_TRIVY_DB_AUTO_UPDATE: ${SAYTU_TRIVY_DB_AUTO_UPDATE:-true}
       SAYTU_TRIVY_DB_REPOSITORY: ${SAYTU_TRIVY_DB_REPOSITORY:-}
       SAYTU_CHECKOUT_MAX_MB: ${SAYTU_CHECKOUT_MAX_MB:-2048}
+      # scanners of each job under a dedicated account (AUTO | REQUIRED | OFF), network blocked for those accounts
+      SAYTU_SCAN_ISOLATION_MODE: ${SAYTU_SCAN_ISOLATION_MODE:-AUTO}
       # outbound proxy for clones and the vulnerability database, if the site requires one
       HTTPS_PROXY: ${SAYTU_HTTPS_PROXY:-}
       NO_PROXY: ${SAYTU_NO_PROXY:-}
@@ -246,7 +248,12 @@ services:
     read_only: true
     tmpfs:
       - /tmp:size=512m,mode=1777
+    # root inside the container, with a subset of Docker's default capabilities, to start each job's scanners
+    # under a dedicated account (setpriv); NET_ADMIN is only used by the entrypoint to block the scanners'
+    # network, then dropped before the worker starts (backend/worker-entrypoint.sh)
+    user: "0:0"
     cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, CHOWN, DAC_OVERRIDE, FOWNER, KILL, NET_ADMIN]
     networks: [data, edge]
     depends_on:
       # the API applies the database migrations first

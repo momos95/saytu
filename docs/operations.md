@@ -1,4 +1,66 @@
-# Exploitation du moteur d'audit (phases 4-5)
+# Exploitation (phases 4-8)
+
+Sommaire : [contrôle après installation](#contrôle-après-installation-ou-mise-à-jour) ·
+[sauvegarde](#sauvegarde-et-restauration) · [mise à jour](#mise-à-jour-de-saytu) ·
+[installation isolée](#installation-isolée-sans-internet) · [SBOM et licences](#sbom-et-licences) ·
+[audits](#services-en-jeu).
+
+Les scripts sont des scripts bash : sous Linux, ou sous Windows dans Git Bash (fourni avec Git for Windows et
+cmder) ou WSL. `offline-bundle.sh` et `sbom.sh` s'utilisent sur une machine Linux ou WSL.
+
+## Contrôle après installation ou mise à jour
+
+```bash
+scripts/smoke-test.sh
+```
+Lecture seule : santé des cinq services, `keycloak-config`, page d'accueil et en-têtes de sécurité (CSP,
+`nosniff`), refus des appels anonymes à l'API (401), actuator non exposé, découverte OIDC de Keycloak avec le
+bon émetteur (détecte un autre programme sur le port de Keycloak), isolation des scanners, présence et âge de
+la base Trivy. Code de sortie 0 si tout passe ; les « WARN » n'échouent pas.
+
+## Sauvegarde et restauration
+
+```bash
+scripts/backup.sh --with-env            # -> backups/saytu-AAAAMMJJ-HHMMSS/
+scripts/restore.sh backups/saytu-20261110-220000 --yes
+```
+* Contenu : base applicative (`saytu.dump` : connexions, jetons chiffrés, résultats, scores, réglages,
+  journal d'audit), base Keycloak (`keycloak.dump` : utilisateurs, rôles, TOTP), `manifest.txt` (date,
+  version du schéma, SHA-256), et avec `--with-env` une copie de `.env`.
+* **`SAYTU_MASTER_KEY` est indispensable** pour relire les jetons Git d'une sauvegarde : conservez `.env` (ou
+  au moins la clé) à part, hors du serveur. Sans elle, les connexions doivent être ressaisies.
+* Non sauvegardés, car recréés : base Trivy, répertoires de travail, secret du client `saytu-admin-api`.
+* La restauration arrête `web`, `worker`, `api` et `keycloak`, vérifie les sommes de contrôle, **remplace** les
+  deux bases puis redémarre tout ; l'API applique ensuite les migrations plus récentes. Vérifiée sur
+  PostgreSQL 16 (sauvegarde, effacement, restauration, propriétaire des tables Keycloak).
+* Planification : par exemple une tâche cron quotidienne `0 1 * * * cd /opt/saytu && scripts/backup.sh`, avec
+  rotation des anciens répertoires.
+
+## Mise à jour de SAYTU
+
+1. `scripts/backup.sh --with-env`
+2. `git pull` (ou `git checkout <tag>`), puis renseigner `SAYTU_VERSION=<version>` dans `.env` pour étiqueter
+   les images (`saytu/api:<version>`…) et pouvoir revenir à la précédente.
+3. `docker compose up -d --build`
+4. `scripts/smoke-test.sh`
+
+Les migrations Flyway s'appliquent au démarrage de l'API ; les scores sont recalculés par le worker si la
+formule a changé. Retour arrière : `SAYTU_VERSION` précédente et `scripts/restore.sh` de la sauvegarde de
+l'étape 1 (une base migrée n'est pas lisible par une version plus ancienne).
+
+Installation isolée : construire les images sur une machine connectée, puis
+`scripts/offline-bundle.sh --images` et `scripts/offline-import.sh` (ci-dessous).
+
+## SBOM et licences
+
+```bash
+scripts/sbom.sh            # images SAYTU ; --all : aussi postgres, keycloak, ollama ; --strict : échec si licence interdite
+```
+Résultat dans `sbom/<version>/` : un SBOM CycloneDX par image et pour les paquets npm de l'interface, et
+l'inventaire des licences classées par Trivy. Produit avec le Trivy de l'image `worker`, **sans réseau**. Voir
+[licenses.md](licenses.md) pour la lecture attendue.
+
+## Services en jeu
 
 ## Services en jeu
 
@@ -50,19 +112,27 @@ Derrière un proxy : `SAYTU_HTTPS_PROXY=http://proxy:3128` dans `.env`. Miroir i
 
 ### Installation isolée (sans Internet)
 
-1. Sur une machine connectée, avec la même version de Trivy (0.76.1) :
+Sur le serveur isolé, `.env` : `SAYTU_TRIVY_DB_AUTO_UPDATE=false`.
+
+1. Sur une machine **connectée** (Linux ou WSL) disposant du dépôt SAYTU et de l'image `worker` construite
+   (`docker compose build worker`), à la même version que le serveur :
    ```bash
-   trivy image --download-db-only --cache-dir ./trivy-cache
-   tar -C ./trivy-cache -czf trivy-db.tgz db
+   scripts/offline-bundle.sh                   # base Trivy + packs de règles de data/rules
+   scripts/offline-bundle.sh --images          # + toutes les images (première installation, mise à jour)
    ```
-2. Transférer `trivy-db.tgz`, puis sur le serveur SAYTU (`.env` : `SAYTU_TRIVY_DB_AUTO_UPDATE=false`) :
+   La base est téléchargée par le Trivy de l'image `worker` (même version que celle qui l'utilisera). Le
+   paquet `saytu-offline-AAAAMMJJ.tar` contient un manifeste avec la SHA-256 de chaque fichier ; un fichier
+   `.sha256` l'accompagne. Seules des données publiques sont téléchargées.
+2. Transférer les deux fichiers, puis sur le serveur :
    ```bash
-   docker compose cp trivy-db.tgz worker:/tmp/trivy-db.tgz
-   docker compose exec worker tar -C /var/lib/saytu/trivy -xzf /tmp/trivy-db.tgz
-   docker compose exec worker cat /var/lib/saytu/trivy/db/metadata.json
+   scripts/offline-import.sh saytu-offline-20261110.tar
    ```
-3. Répéter au moins chaque semaine : la date de la base (`UpdatedAt`) est enregistrée avec chaque
-   exécution de Trivy et affichée dans la page Audits.
+   Le script vérifie toutes les sommes de contrôle (rien n'est importé si un fichier est altéré), charge les
+   images, remplace la base Trivy **atomiquement** (extraction à côté puis échange : un audit en cours ne voit
+   jamais une base à moitié écrite), la rend lisible par les comptes de scanners et affiche sa date
+   (`UpdatedAt`), puis installe les packs de règles.
+3. Répéter au moins chaque semaine : la date de la base est enregistrée avec chaque exécution de Trivy et
+   affichée dans la page Audits ; `scripts/smoke-test.sh` avertit au-delà de 7 jours.
 
 La base Java (`trivy-java-db`, analyse des `.jar` présents dans les dépôts) n'est pas téléchargée :
 les archives `.jar/.war/.ear` sont ignorées ; les `pom.xml`, `gradle.lockfile` et lockfiles des autres

@@ -58,7 +58,8 @@ de PyPI (SQLFluff), d'un clone Git vérifié par commit (PHP_CodeSniffer) et d'U
 | **SQLFluff** (SQL) | 4.4.0 (venv Python ; version figée, dépendances résolues par pip à la construction) | MIT ; dépendances MIT/BSD/Apache-2.0 | règles intégrées | ✅ phase 5 |
 | C# | — | — | — | ❌ aucun analyseur de qualité libre utilisable sans compiler le projet (les analyseurs Roslyn exigent `dotnet build`, interdit : aucun script de build du dépôt n'est exécuté). La qualité C# est affichée « non couverte ». |
 | **OWASP Dependency-Check** (optionnel) | — | Apache-2.0 | NVD (domaine public) ; clé d'API NVD gratuite recommandée | ❌ non intégré : Trivy couvre les dépendances ; affiché « non intégré » |
-| git, util-linux (`prlimit`) | paquets Ubuntu 24.04 | GPL-2.0 | — | programmes du système de l'image `worker` |
+| git, util-linux (`prlimit`, `setpriv`) | paquets Ubuntu 24.04 | GPL-2.0 | — | programmes du système de l'image `worker` |
+| iptables (phase 8) | paquet Ubuntu 24.04 | GPL-2.0 | — | pare-feu des comptes de scanners, appelé par `worker-entrypoint.sh` ; programme séparé, non modifié |
 
 ### Règles Opengrep (décision du 5 novembre 2026)
 
@@ -98,5 +99,11 @@ Spring Framework, Apache-2.0, déjà présent), webhooks et client Keycloak (`ja
 ## Procédure de contrôle
 
 1. À chaque ajout de dépendance : licence vérifiée sur le dépôt officiel, ajout dans ce tableau.
-2. Phase 8 : génération automatique d'un inventaire (SBOM CycloneDX pour le backend et le
-   frontend) et contrôle des licences dans le pipeline de build.
+2. Inventaire automatique : `scripts/sbom.sh` produit, sans réseau, un SBOM CycloneDX par image SAYTU (paquets
+   système, JAR y compris ceux de `saytu.jar`, modules Python et Node) et des paquets npm de l'interface, avec
+   l'inventaire des licences classées par Trivy (*forbidden*, *restricted*, *reciprocal*, *notice*,
+   *permissive*, *unknown*). `--strict` échoue (code 3) si une licence *forbidden* apparaît, pour un pipeline.
+3. Lecture attendue : les licences *restricted* / *reciprocal* (GPL, LGPL, MPL) viennent des paquets Ubuntu et
+   des outils exécutés comme programmes séparés (git, Cppcheck, iptables…) ; elles n'imposent rien au code
+   SAYTU tant que ces programmes ne sont ni modifiés ni liés. Toute licence *forbidden* ou *unknown* nouvelle
+   doit être examinée avant diffusion des images.

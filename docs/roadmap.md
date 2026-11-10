@@ -9,7 +9,7 @@
 | 5 | Détection des langages, outils de qualité par langage (Checkstyle, PMD, ESLint, PHPCS, Cppcheck, SQLFluff), scoring et couverture | ✅ livrée (voir détail) |
 | 6 | Dashboard Angular, détail dépôt, liste/détail des vulnérabilités et triage, rapports HTML/PDF/JSON/SARIF | ✅ livrée (voir détail) |
 | 7 | Planification cron, historique, comparaison de scans, webhooks, gestion des utilisateurs, recommandations, Ollama | ✅ livrée (voir détail) |
-| 8 | Durcissement, tests de bout en bout, SBOM, guides d'exploitation et de mise à jour hors ligne | à faire |
+| 8 | Durcissement, tests de bout en bout, SBOM, guides d'exploitation et de mise à jour hors ligne | ✅ livrée (voir détail ; tests navigateur de bout en bout non faits) |
 
 ## Renommage AfriCodeShield → SAYTU (4 novembre 2026)
 
@@ -33,6 +33,36 @@ chiffrement) : une installation existante doit être réinitialisée.
 **Avec Docker Compose** : `docker compose down -v`, renommer les variables `ACS_*` en `SAYTU_*` dans
 `.env` (ou le regénérer avec `scripts/generate-secrets.sh` après l'avoir supprimé), puis
 `docker compose up -d --build`.
+
+## Phase 8 — détail (10 novembre 2026)
+
+### Livré et vérifié dans l'environnement de développement
+* **Isolation des scanners** (`ScannerIsolation`) : compte dédié par audit via `setpriv`, sans groupe ni
+  capacité, `no_new_privs` ; répertoires du job partagés au seul groupe du job ; processus restants tués
+  après chaque outil. **Testé en conditions réelles (root)** : `ScannerIsolationTest` (4 tests : uid/gid,
+  capacités nulles, environnement du worker et jeton illisibles, sources non modifiables, autres jobs non
+  listables, démon détaché tué, base publique rendue lisible sans suivre les liens) et un audit complet avec
+  les **vrais Opengrep, Trivy et Gitleaks** lancés sous le compte dédié (`ScanJobRunnerTest`).
+  `saytu-scan` 49/49, `saytu-core` 91/91, `saytu-git` 89/89.
+* `worker-entrypoint.sh` : logique testée avec des `iptables` simulés (règle posée, repli REJECT → DROP,
+  refus du noyau signalé) et retrait effectif de `NET_ADMIN` (`CapBnd`).
+* `backup.sh` / `restore.sh` : **testés sur PostgreSQL 16** (sauvegarde, effacement, restauration, tables
+  Keycloak rendues au rôle keycloak). `offline-import.sh` : import, échange atomique, droits, et **refus d'un
+  paquet altéré** testés.
+* Options de Trivy utilisées par `sbom.sh` vérifiées avec Trivy 0.76.1 (CycloneDX 1.7, code 3 sur licence
+  interdite).
+
+### Écrit pour fonctionner, non exécuté ici (pas de Docker dans l'environnement de développement)
+* Image `worker` (iptables, point d'entrée), service `worker` en root à capacités réduites ; règle
+  `iptables -m owner` réelle (dépend du noyau de l'hôte : l'état réel est affiché).
+* `offline-bundle.sh`, `sbom.sh`, `smoke-test.sh` (appels `docker`).
+* Spring : `WorkerStatusService` / `GET /api/v1/system/worker` ; Angular : bloc « Isolation des scanners »
+  (spec TestBed).
+
+### Non fait
+* Tests navigateur de bout en bout (Playwright) : le parcours complet reste manuel, `smoke-test.sh` couvre
+  le contrôle d'une installation.
+* Espaces de noms (bubblewrap) : refusés par le profil seccomp par défaut de Docker sans `CAP_SYS_ADMIN`.
 
 ## Organisation des branches (10 novembre 2026)
 
