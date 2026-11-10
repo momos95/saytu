@@ -53,6 +53,11 @@ docker compose ps                    # postgres, keycloak, api, worker, web doiv
   connexion.
 * Santé de l'API : `docker compose exec web wget -qO- http://api:8080/actuator/health`
 
+Changer de port : modifier **ensemble** `SAYTU_HTTP_PORT` et `SAYTU_PUBLIC_URL` dans `.env` (par exemple
+`8090` et `http://localhost:8090`), puis `docker compose up -d`. Le service `keycloak-config` réaligne à
+chaque démarrage les adresses autorisées du client `saytu-web` sur `SAYTU_PUBLIC_URL` (sinon Keycloak
+refuse la connexion : `redirect_uri` invalide, erreur 400 ou 401).
+
 En production, placez `web` et `keycloak` derrière un reverse proxy TLS et renseignez
 `SAYTU_PUBLIC_URL` / `SAYTU_KEYCLOAK_PUBLIC_URL` en `https://`.
 
